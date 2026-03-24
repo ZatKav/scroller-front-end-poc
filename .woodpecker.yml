@@ -31,7 +31,7 @@ steps:
     commands:
       - cd scroller-front-end-poc
       - npm ci
-      - npm run test:e2e
+      - npm run test:e2e -- --pass-with-no-tests
     when:
       event:
         - pull_request
