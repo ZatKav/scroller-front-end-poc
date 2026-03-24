@@ -1,0 +1,73 @@
+# Woodpecker CI Pipeline for Scroller Front-End PoC
+# Lightweight CI/CD with Podman support
+
+when:
+  event:
+    - pull_request
+    - push
+    - manual
+
+steps:
+  # ============================================================================
+  # Unit Tests
+  # ============================================================================
+  - name: test-unit
+    image: node:20-alpine
+    commands:
+      - cd scroller-front-end-poc
+      - npm ci
+      - npm test
+    when:
+      event:
+        - pull_request
+        - push
+        - manual
+
+  # ============================================================================
+  # E2E Tests
+  # ============================================================================
+  - name: test-e2e
+    image: mcr.microsoft.com/playwright:v1.55.1-noble
+    commands:
+      - cd scroller-front-end-poc
+      - npm ci
+      - npm run test:e2e -- --pass-with-no-tests
+    when:
+      event:
+        - pull_request
+        - push
+        - manual
+
+  # ============================================================================
+  # Build and Push Image to Local Registry (main branch only)
+  # ============================================================================
+  - name: build-and-push
+    image: quay.io/podman/stable:latest
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      CONTAINER_HOST: unix:///var/run/docker.sock
+    commands:
+      - echo "Building scroller-front-end-poc image..."
+      - podman build -t localhost/scroller-front-end-poc:latest -f scroller-front-end-poc/Containerfile scroller-front-end-poc
+
+      - echo "Tagging for local registry..."
+      - podman tag localhost/scroller-front-end-poc:latest host.containers.internal:5000/scroller-front-end-poc:latest
+
+      - echo "Pushing to local registry..."
+      - podman push --tls-verify=false host.containers.internal:5000/scroller-front-end-poc:latest
+
+      - echo "Verifying image in registry..."
+      - podman images | grep "scroller-front-end-poc"
+
+      - echo "Image successfully pushed to local registry!"
+    depends_on:
+      - test-unit
+      - test-e2e
+    when:
+      event:
+        - push
+      branch:
+        - main
