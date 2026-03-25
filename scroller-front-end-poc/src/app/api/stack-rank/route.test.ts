@@ -64,10 +64,13 @@ describe('GET /api/stack-rank', () => {
   });
 
   describe('success', () => {
-    it('fetches stack-rank images, stores them in session, and returns 200', async () => {
+    it('fetches stack-rank images, filters null image_data, stores in session, and returns images', async () => {
       const mockImages = [
         { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
         { id: 2, image_data: null, image_summary: null },
+      ];
+      const expectedFiltered = [
+        { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
       ];
       mockVerifyToken.mockReturnValueOnce(MOCK_USER);
       mockFetchStackRankImages.mockResolvedValueOnce(mockImages);
@@ -76,8 +79,8 @@ describe('GET /api/stack-rank', () => {
 
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body).toEqual({ ok: true });
-      expect(mockSetStackRank).toHaveBeenCalledWith(MOCK_USER.id, mockImages);
+      expect(body).toEqual({ ok: true, images: expectedFiltered });
+      expect(mockSetStackRank).toHaveBeenCalledWith(MOCK_USER.id, expectedFiltered);
     });
   });
 

@@ -19,8 +19,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     const images = await fetchStackRankImages();
-    setStackRank(user.id, images);
-    return NextResponse.json({ ok: true });
+    const filteredImages = images.filter((img) => img.image_data !== null);
+    setStackRank(user.id, filteredImages);
+    return NextResponse.json({ ok: true, images: filteredImages });
   } catch (error) {
     if (error instanceof StackRankClientError) {
       console.error('Stack-rank upstream error:', error.message);
