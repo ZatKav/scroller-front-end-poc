@@ -31,18 +31,18 @@ export default function ImageScroller({ images, customerId }: ImageScrollerProps
         image_id: currentImage.id,
         action,
       });
+      setCurrentIndex((prev) => prev + 1);
     } catch (error) {
       console.error('Failed to record interaction:', error);
     } finally {
       setSubmitting(false);
-      setCurrentIndex((prev) => prev + 1);
     }
   }
 
   return (
     <div className="flex flex-col items-center gap-6">
       <img
-        src={`data:image/jpeg;base64,${currentImage.image_data}`}
+        src={currentImage.image_data!.startsWith('data:') ? currentImage.image_data! : `data:image/jpeg;base64,${currentImage.image_data}`}
         alt={currentImage.image_summary || 'Property image'}
         className="max-w-full max-h-[60vh] rounded-lg shadow-md object-contain"
       />

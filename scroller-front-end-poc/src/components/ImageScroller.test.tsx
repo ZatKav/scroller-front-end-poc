@@ -118,4 +118,32 @@ describe('ImageScroller', () => {
       expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/jpeg;base64,BBBB');
     });
   });
+
+  it('does not advance when the interaction POST fails', async () => {
+    mockCreateInteraction.mockRejectedValueOnce(new Error('Network error'));
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    const user = userEvent.setup();
+    render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+    await user.click(screen.getByRole('button', { name: 'Like' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Like' })).not.toBeDisabled();
+    });
+
+    // Should still show the first image, not advance
+    expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/jpeg;base64,AAAA');
+
+    consoleSpy.mockRestore();
+  });
+
+  it('renders image_data that already contains a data URI prefix without double-prefixing', () => {
+    const imagesWithDataUri = [
+      { id: 3, image_data: 'data:image/png;base64,CCCC', image_summary: 'PNG image' },
+    ];
+    render(<ImageScroller images={imagesWithDataUri} customerId={CUSTOMER_ID} />);
+
+    expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/png;base64,CCCC');
+  });
 });
