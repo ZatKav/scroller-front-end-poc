@@ -1,0 +1,16 @@
+{
+  "jack": {
+    "id": 1,
+    "username": "jack",
+    "email": "jack@finder.co.uk",
+    "password": "$2a$12$D/pXKIWe4bncBLFr.nb1YuLZctXegJsmixhWXdq.kdOV9euxK8ek.",
+    "role": "admin"
+  },
+  "phil": {
+    "id": 2,
+    "username": "phil",
+    "email": "phil@finder.co.uk",
+    "password": "$2a$12$SV1Lg5YPQCOxHf/.qZ1MZ.ZXZd2zxX1iatnuZqY00vL9DO0atpiVG",
+    "role": "admin"
+  }
+}
