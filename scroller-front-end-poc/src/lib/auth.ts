@@ -2,11 +2,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import users from '../../data/users.json';
 
-const JWT_SECRET = process.env.JWT_SECRET_KEY || 'fallback-secret-key';
-
-if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET_KEY) {
-  console.warn('WARNING: JWT_SECRET_KEY is not set in production. Using fallback secret.');
-}
+export const AUTH_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 export interface User {
   id: number;
@@ -19,6 +15,39 @@ export interface AuthenticatedUser extends User {
   token: string;
 }
 
+interface StoredUser extends User {
+  password: string;
+}
+
+const userStore = users as Record<string, StoredUser>;
+
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET_KEY;
+
+  if (!secret) {
+    throw new Error('JWT_SECRET_KEY must be set before using authentication routes.');
+  }
+
+  return secret;
+}
+
+function toPublicUser(user: StoredUser): User {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+  };
+}
+
+function isUserPayload(payload: jwt.JwtPayload | string): payload is jwt.JwtPayload & User {
+  return typeof payload !== 'string'
+    && typeof payload.id === 'number'
+    && typeof payload.username === 'string'
+    && typeof payload.email === 'string'
+    && typeof payload.role === 'string';
+}
+
 export function generateToken(user: User): string {
   return jwt.sign(
     {
@@ -27,22 +56,32 @@ export function generateToken(user: User): string {
       email: user.email,
       role: user.role,
     },
-    JWT_SECRET,
-    { expiresIn: '24h' }
+    getJwtSecret(),
+    { expiresIn: AUTH_TOKEN_MAX_AGE_SECONDS }
   );
 }
 
 export function verifyToken(token: string): User | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as User;
-    return decoded;
-  } catch (error) {
+    const decoded = jwt.verify(token, getJwtSecret());
+
+    if (!isUserPayload(decoded)) {
+      return null;
+    }
+
+    return {
+      id: decoded.id,
+      username: decoded.username,
+      email: decoded.email,
+      role: decoded.role,
+    };
+  } catch {
     return null;
   }
 }
 
 export async function authenticateUser(username: string, password: string): Promise<AuthenticatedUser | null> {
-  const user = (users as any)[username];
+  const user = userStore[username];
 
   if (!user) {
     return null;
@@ -54,15 +93,15 @@ export async function authenticateUser(username: string, password: string): Prom
     return null;
   }
 
-  const token = generateToken(user);
+  const token = generateToken(toPublicUser(user));
 
   return {
-    ...user,
+    ...toPublicUser(user),
     token,
   };
 }
 
 export function getUserByUsername(username: string): User | null {
-  const user = (users as any)[username];
-  return user || null;
+  const user = userStore[username];
+  return user ? toPublicUser(user) : null;
 }

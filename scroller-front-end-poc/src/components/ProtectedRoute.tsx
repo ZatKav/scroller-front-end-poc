@@ -1,21 +1,30 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+const PUBLIC_ROUTES = new Set(['/login']);
+
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const isPublicRoute = pathname ? PUBLIC_ROUTES.has(pathname) : false;
 
   useEffect(() => {
-    if (!loading && !user) {
-      window.location.href = '/login';
-      return;
+    if (!loading && !user && !isPublicRoute) {
+      router.replace('/login');
     }
-  }, [user, loading]);
+  }, [isPublicRoute, loading, router, user]);
+
+  if (isPublicRoute) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
@@ -34,7 +43,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         <div className="text-center">
           <p className="text-gray-600">Redirecting to login...</p>
           <button
-            onClick={() => window.location.href = '/login'}
+            onClick={() => router.replace('/login')}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Click here if not redirected

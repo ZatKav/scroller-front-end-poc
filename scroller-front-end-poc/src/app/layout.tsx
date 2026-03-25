@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 const inter = Inter({
     variable: "--font-sans",
@@ -22,7 +23,9 @@ export default function RootLayout({
         <html lang="en">
             <body className={`${inter.variable} font-sans antialiased`}>
                 <AuthProvider>
-                    {children}
+                    <ProtectedRoute>
+                        {children}
+                    </ProtectedRoute>
                 </AuthProvider>
             </body>
         </html>

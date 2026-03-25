@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateUser } from '@/lib/auth';
+import { authenticateUser, AUTH_TOKEN_MAX_AGE_SECONDS } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,14 +30,14 @@ export async function POST(request: NextRequest) {
         email: authenticatedUser.email,
         role: authenticatedUser.role,
       },
-      token: authenticatedUser.token,
     });
 
     response.cookies.set('auth-token', authenticatedUser.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 30, // 30 days
+      maxAge: AUTH_TOKEN_MAX_AGE_SECONDS,
+      path: '/',
     });
 
     return response;
