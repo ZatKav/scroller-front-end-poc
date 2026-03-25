@@ -1,30 +1,22 @@
 'use client';
 
 import { useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-const PUBLIC_ROUTES = new Set(['/login']);
-
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
-  const pathname = usePathname();
   const router = useRouter();
-  const isPublicRoute = pathname ? PUBLIC_ROUTES.has(pathname) : false;
 
   useEffect(() => {
-    if (!loading && !user && !isPublicRoute) {
+    if (!loading && !user) {
       router.replace('/login');
     }
-  }, [isPublicRoute, loading, router, user]);
-
-  if (isPublicRoute) {
-    return <>{children}</>;
-  }
+  }, [loading, router, user]);
 
   if (loading) {
     return (
