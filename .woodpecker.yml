@@ -44,6 +44,11 @@ steps:
   - name: build-and-push
     image: quay.io/podman/stable:latest
     privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      CONTAINER_HOST: unix:///var/run/docker.sock
     depends_on:
       - test-unit
       - test-e2e
@@ -86,6 +91,12 @@ steps:
   - name: deploy-main
     image: quay.io/podman/stable:latest
     privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      CONTAINER_HOST: unix:///var/run/docker.sock
+      PODMAN_HEALTHCHECK_URL: http://host.containers.internal:3020
     depends_on:
       - build-and-push
     when:
