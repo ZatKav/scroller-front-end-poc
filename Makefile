@@ -23,11 +23,11 @@ test: test-dashboard-unit test-dashboard-e2e ## Run all tests
 
 PODMAN_IMG ?= localhost/scroller-front-end-poc:latest
 PODMAN_CONT ?= scroller-front-end-poc-local
-PODMAN_PORT ?= 3020
+PODMAN_PORT ?= 8410
 PODMAN_ENV_FILE ?=
 REGISTRY_IMAGE ?= host.containers.internal:5000/scroller-front-end-poc:latest
 PODMAN_KUBE_MANIFEST ?= podman-scroller-kube.yaml
-PODMAN_HEALTHCHECK_URL ?= http://localhost:3020
+PODMAN_HEALTHCHECK_URL ?= http://localhost:8410
 PODMAN_POD_NAME ?= pod_scroller_front_end
 
 .PHONY: podman-build
@@ -39,7 +39,7 @@ podman-build: ## Build the scroller Podman image
 podman-start: ## Start the scroller container (detached). Use PODMAN_ENV_FILE=.env for runtime config
 	@echo "Starting container $(PODMAN_CONT) on port $(PODMAN_PORT)..."
 	-podman rm -f $(PODMAN_CONT) >/dev/null 2>&1 || true
-	podman run -d --name $(PODMAN_CONT) -p $(PODMAN_PORT):3000 \
+	podman run -d --name $(PODMAN_CONT) -p $(PODMAN_PORT):8410 \
 		$(if $(PODMAN_ENV_FILE),--env-file $(PODMAN_ENV_FILE),) \
 		$(PODMAN_IMG)
 
@@ -107,7 +107,7 @@ podman-deploy: ## Deploy the scroller pod using Kubernetes manifest
 	@echo "Pod status:"
 	@podman pod ls --filter name=pod_scroller_front_end
 	@echo ""
-	@echo "Scroller should be available at: http://localhost:3020"
+	@echo "Scroller should be available at: http://localhost:8410"
 
 .PHONY: podman-ci-deploy
 podman-ci-deploy: ## Deploy the scroller pod in CI with failure on deploy errors
@@ -121,7 +121,7 @@ podman-ci-deploy: ## Deploy the scroller pod in CI with failure on deploy errors
 	@podman pod ls --filter name=pod_scroller_front_end
 
 .PHONY: podman-deploy-ci
-podman-deploy-ci: ## Pull latest image from registry, redeploy pod, and verify health on port 3020
+podman-deploy-ci: ## Pull latest image from registry, redeploy pod, and verify health on port 8410
 	@echo "Pulling published image: $(REGISTRY_IMAGE)"
 	podman pull --tls-verify=false $(REGISTRY_IMAGE)
 	@echo "Stopping existing pod (if any)..."

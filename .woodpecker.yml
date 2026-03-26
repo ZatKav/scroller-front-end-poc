@@ -96,7 +96,7 @@ steps:
     environment:
       DOCKER_HOST: unix:///var/run/docker.sock
       CONTAINER_HOST: unix:///var/run/docker.sock
-      PODMAN_HEALTHCHECK_URL: http://host.containers.internal:3020
+      PODMAN_HEALTHCHECK_URL: http://host.containers.internal:8410
     depends_on:
       - build-and-push
     when:

@@ -16,7 +16,7 @@ Bootstrapped `scroller-front-end-poc` as an empty but runnable Next.js TypeScrip
 - `scroller-front-end-poc/postcss.config.mjs`: tailwindcss + autoprefixer.
 - `scroller-front-end-poc/jest.config.js`: next/jest wrapper with jsdom environment, `@/` module alias, coverage thresholds, Playwright test exclusion.
 - `scroller-front-end-poc/jest.setup.js`: next/router and next/navigation mocks, global fetch mock.
-- `scroller-front-end-poc/playwright.config.ts`: Three-browser (chromium, firefox, webkit) Playwright config targeting localhost:3000.
+- `scroller-front-end-poc/playwright.config.ts`: Three-browser (chromium, firefox, webkit) Playwright config targeting localhost:8410.
 - `scroller-front-end-poc/.env.example`: Placeholder env file; no real values.
 - `scroller-front-end-poc/src/app/layout.tsx`: Root App Router layout with Inter font and metadata.
 - `scroller-front-end-poc/src/app/page.tsx`: Minimal placeholder home page.
