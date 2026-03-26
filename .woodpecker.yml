@@ -49,25 +49,96 @@ steps:
     environment:
       DOCKER_HOST: unix:///var/run/docker.sock
       CONTAINER_HOST: unix:///var/run/docker.sock
-    commands:
-      - echo "Building scroller-front-end-poc image..."
-      - podman build -t localhost/scroller-front-end-poc:latest -f scroller-front-end-poc/Containerfile scroller-front-end-poc
-
-      - echo "Tagging for local registry..."
-      - podman tag localhost/scroller-front-end-poc:latest host.containers.internal:5000/scroller-front-end-poc:latest
-
-      - echo "Pushing to local registry..."
-      - podman push --tls-verify=false host.containers.internal:5000/scroller-front-end-poc:latest
-
-      - echo "Verifying image in registry..."
-      - podman images | grep "scroller-front-end-poc"
-
-      - echo "Image successfully pushed to local registry!"
     depends_on:
       - test-unit
       - test-e2e
     when:
-      event:
-        - push
-      branch:
-        - main
+      event: push
+      branch: main
+      status: success
+    commands:
+      - |
+        mkdir -p ci-logs
+        LOG="ci-logs/build-and-push.txt"
+        set +e
+        sh -eu -c '
+          echo "Building and publishing latest image..."
+          if ! command -v make >/dev/null 2>&1; then
+            if command -v apk >/dev/null 2>&1; then
+              apk add --no-cache make
+            elif command -v microdnf >/dev/null 2>&1; then
+              microdnf install -y make
+            elif command -v dnf >/dev/null 2>&1; then
+              dnf install -y make
+            else
+              echo "No supported package manager found to install make"
+              exit 1
+            fi
+          fi
+          make podman-build
+          make podman-push
+        ' >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then
+          rm -f "$LOG"
+        fi
+        exit $STATUS
+
+  # ============================================================================
+  # Deploy Latest Image to Host Machine (main branch only)
+  # ============================================================================
+  - name: deploy-main
+    image: quay.io/podman/stable:latest
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      CONTAINER_HOST: unix:///var/run/docker.sock
+      PODMAN_HEALTHCHECK_URL: http://host.containers.internal:3020
+    depends_on:
+      - build-and-push
+    when:
+      event: push
+      branch: main
+      status: success
+    commands:
+      - |
+        mkdir -p ci-logs
+        LOG="ci-logs/deploy-main.txt"
+        set +e
+        sh -eu -c '
+          echo "Deploying latest published image..."
+          if ! command -v make >/dev/null 2>&1; then
+            if command -v apk >/dev/null 2>&1; then
+              apk add --no-cache make curl
+            elif command -v microdnf >/dev/null 2>&1; then
+              microdnf install -y make curl
+            elif command -v dnf >/dev/null 2>&1; then
+              dnf install -y make curl
+            else
+              echo "No supported package manager found to install make/curl"
+              exit 1
+            fi
+          fi
+          if ! command -v curl >/dev/null 2>&1; then
+            if command -v apk >/dev/null 2>&1; then
+              apk add --no-cache curl
+            elif command -v microdnf >/dev/null 2>&1; then
+              microdnf install -y curl
+            elif command -v dnf >/dev/null 2>&1; then
+              dnf install -y curl
+            else
+              echo "No supported package manager found to install curl"
+              exit 1
+            fi
+          fi
+          make podman-deploy-ci
+        ' >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then
+          rm -f "$LOG"
+        fi
+        exit $STATUS

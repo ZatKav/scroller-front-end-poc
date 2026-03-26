@@ -1,4 +1,4 @@
-.PHONY: help run test-dashboard-unit test-dashboard-e2e test
+.PHONY: help run test-dashboard-unit test-dashboard-e2e test podman-deploy-ci
 
 help:  ## Show this help message
 	@echo "Available targets:"
@@ -25,6 +25,10 @@ PODMAN_IMG ?= localhost/scroller-front-end-poc:latest
 PODMAN_CONT ?= scroller-front-end-poc-local
 PODMAN_PORT ?= 3020
 PODMAN_ENV_FILE ?=
+REGISTRY_IMAGE ?= host.containers.internal:5000/scroller-front-end-poc:latest
+PODMAN_KUBE_MANIFEST ?= podman-scroller-kube.yaml
+PODMAN_HEALTHCHECK_URL ?= http://localhost:3020
+PODMAN_POD_NAME ?= pod_scroller_front_end
 
 .PHONY: podman-build
 podman-build: ## Build the scroller Podman image
@@ -83,9 +87,12 @@ podman-clean: ## Stop container and remove the image
 	-podman rmi $(PODMAN_IMG) >/dev/null 2>&1 || true
 
 .PHONY: podman-push
-podman-push: ## Push the scroller image to a registry
-	@echo "Pushing $(PODMAN_IMG)..."
-	podman push $(PODMAN_IMG)
+podman-push: ## Tag and push the scroller image to the local registry
+	@echo "Tagging $(PODMAN_IMG) as $(REGISTRY_IMAGE)..."
+	podman tag $(PODMAN_IMG) $(REGISTRY_IMAGE)
+	@echo "Pushing $(REGISTRY_IMAGE)..."
+	podman push --tls-verify=false $(REGISTRY_IMAGE)
+	@echo "Pushed $(REGISTRY_IMAGE)"
 
 # --- Kubernetes deployment targets ---
 
@@ -112,3 +119,25 @@ podman-ci-deploy: ## Deploy the scroller pod in CI with failure on deploy errors
 	@echo "Scroller pod deployed!"
 	@echo "Pod status:"
 	@podman pod ls --filter name=pod_scroller_front_end
+
+.PHONY: podman-deploy-ci
+podman-deploy-ci: ## Pull latest image from registry, redeploy pod, and verify health on port 3020
+	@echo "Pulling published image: $(REGISTRY_IMAGE)"
+	podman pull --tls-verify=false $(REGISTRY_IMAGE)
+	@echo "Stopping existing pod (if any)..."
+	-podman play kube --down $(PODMAN_KUBE_MANIFEST) 2>/dev/null || true
+	@echo "Deploying from $(PODMAN_KUBE_MANIFEST)..."
+	podman play kube $(PODMAN_KUBE_MANIFEST)
+	@echo "Waiting for health endpoint: $(PODMAN_HEALTHCHECK_URL)"
+	@attempts=45; \
+	until curl -fsS "$(PODMAN_HEALTHCHECK_URL)" > /dev/null; do \
+		attempts=$$((attempts - 1)); \
+		if [ $$attempts -le 0 ]; then \
+			echo "Deployment health check failed: $(PODMAN_HEALTHCHECK_URL)"; \
+			podman pod ps --filter name="$(PODMAN_POD_NAME)" || true; \
+			podman ps --filter name="$(PODMAN_POD_NAME)" || true; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done
+	@echo "Deployment healthy at $(PODMAN_HEALTHCHECK_URL)"
