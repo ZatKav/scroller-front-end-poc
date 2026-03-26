@@ -36,7 +36,7 @@ function makeRequest(token?: string): NextRequest {
   if (token) {
     headers['Cookie'] = `auth-token=${token}`;
   }
-  return new NextRequest('http://localhost:3000/api/stack-rank', { headers });
+  return new NextRequest('http://localhost:8410/api/stack-rank', { headers });
 }
 
 beforeEach(() => {

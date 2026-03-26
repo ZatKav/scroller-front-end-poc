@@ -14,18 +14,18 @@ spec:
       image: host.containers.internal:5000/scroller-front-end-poc:latest
       imagePullPolicy: Always
       ports:
-        - containerPort: 3000
-          hostPort: 3020
+        - containerPort: 8410
+          hostPort: 8410
       readinessProbe:
         httpGet:
           path: /
-          port: 3000
+          port: 8410
         initialDelaySeconds: 10
         periodSeconds: 10
       livenessProbe:
         httpGet:
           path: /
-          port: 3000
+          port: 8410
         initialDelaySeconds: 20
         periodSeconds: 30
 ---
@@ -38,6 +38,6 @@ spec:
     app: pod_scroller_front_end
   ports:
     - name: http
-      port: 3000
-      targetPort: 3000
+      port: 8410
+      targetPort: 8410
   type: LoadBalancer

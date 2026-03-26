@@ -24,7 +24,7 @@ function makeRequest(token?: string): NextRequest {
     headers.Cookie = `auth-token=${token}`;
   }
 
-  return new NextRequest('http://localhost:3000/api/auth/logout', { headers });
+  return new NextRequest('http://localhost:8410/api/auth/logout', { headers });
 }
 
 beforeEach(() => {

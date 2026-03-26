@@ -5,7 +5,7 @@ Added standard podman container lifecycle targets and Kubernetes deployment mani
 
 ## Changes
 - `Makefile`: Added podman variables (`PODMAN_IMG`, `PODMAN_CONT`, `PODMAN_PORT`, `PODMAN_ENV_FILE`) and container lifecycle targets (`podman-build`, `podman-start`, `podman-stop`, `podman-restart`, `podman-logs`, `podman-shell`, `podman-status`), composite targets (`podman-run`, `podman-rebuild`, `podman-clean`, `podman-push`), and deployment targets (`podman-deploy`, `podman-ci-deploy`). Existing targets unchanged.
-- `podman-scroller-kube.yaml`: New Kubernetes manifest following the structure of `podman-evaluation-kube.yaml` — Pod spec with `restartPolicy: Always`, image from local registry, `hostPort: 3020`, `containerPort: 3000`, readiness/liveness probes, and a Service. No hardcoded env vars.
+- `podman-scroller-kube.yaml`: New Kubernetes manifest following the structure of `podman-evaluation-kube.yaml` — Pod spec with `restartPolicy: Always`, image from local registry, `hostPort: 8410`, `containerPort: 8410`, readiness/liveness probes, and a Service. No hardcoded env vars.
 
 ## Tests
 - Ran: `make help` in `scroller-front-end-poc`

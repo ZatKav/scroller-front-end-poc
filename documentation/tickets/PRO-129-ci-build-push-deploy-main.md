@@ -6,8 +6,8 @@ Updated the `scroller-front-end-poc` CI pipeline to mirror the pattern establish
 
 ## Changes
 
-- `Makefile`: Updated `podman-push` to tag the local image to the registry and push with `--tls-verify=false`. Added registry variables (`REGISTRY_IMAGE`, `PODMAN_KUBE_MANIFEST`, `PODMAN_HEALTHCHECK_URL`, `PODMAN_POD_NAME`). Added new `podman-deploy-ci` target that pulls the latest image from the registry, tears down any existing pod, redeploys via the kube manifest, and health-checks on port 3020.
-- `.woodpecker.yml`: Refactored `build-and-push` step to use `make podman-build` + `make podman-push` with `privileged: true`, the `ci-logs` capture pattern, and the host Podman socket mounted at `/var/run/docker.sock`. Added `deploy-main` after `build-and-push` using `make podman-deploy-ci`, the same host Podman socket wiring, and `PODMAN_HEALTHCHECK_URL=http://host.containers.internal:3020` so CI verifies the host machine rather than the ephemeral step container.
+- `Makefile`: Updated `podman-push` to tag the local image to the registry and push with `--tls-verify=false`. Added registry variables (`REGISTRY_IMAGE`, `PODMAN_KUBE_MANIFEST`, `PODMAN_HEALTHCHECK_URL`, `PODMAN_POD_NAME`). Added new `podman-deploy-ci` target that pulls the latest image from the registry, tears down any existing pod, redeploys via the kube manifest, and health-checks on port 8410.
+- `.woodpecker.yml`: Refactored `build-and-push` step to use `make podman-build` + `make podman-push` with `privileged: true`, the `ci-logs` capture pattern, and the host Podman socket mounted at `/var/run/docker.sock`. Added `deploy-main` after `build-and-push` using `make podman-deploy-ci`, the same host Podman socket wiring, and `PODMAN_HEALTHCHECK_URL=http://host.containers.internal:8410` so CI verifies the host machine rather than the ephemeral step container.
 
 ## Tests
 

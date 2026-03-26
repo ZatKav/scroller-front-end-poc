@@ -24,7 +24,7 @@ make run
 cd scroller-front-end-poc && npm run dev
 ```
 
-The app will be available at [http://localhost:3000](http://localhost:3000).
+The app will be available at [http://localhost:8410](http://localhost:8410).
 
 ## Environment variables
 

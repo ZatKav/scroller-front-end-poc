@@ -11,7 +11,7 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
-    PORT=3000
+    PORT=8410
 
 COPY package*.json ./
 RUN npm ci --omit=dev
@@ -20,5 +20,5 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-EXPOSE 3000
+EXPOSE 8410
 CMD ["node", "server.js"]
