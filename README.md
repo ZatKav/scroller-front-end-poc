@@ -64,6 +64,17 @@ make test-dashboard-e2e
 make test
 ```
 
+CI-specific test commands used by Woodpecker:
+
+- `npm run test:allure:unit` emits unit-test Allure results (`scroller-front-end-poc/allure-results-unit`).
+- `npm run test:e2e:ci` keeps Playwright `--pass-with-no-tests` behavior and emits e2e Allure results (`scroller-front-end-poc/allure-results-e2e`).
+
+## CI report and log artifacts
+
+- `.woodpecker.yml` now includes `allure-report` and `store-report-locally` post-run stages that execute on both successful and failed pipelines.
+- Combined Allure HTML output is published to `/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/index.html`, and `latest` is updated per branch.
+- Only retained problem-stage logs are copied into `/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/ci-logs/`; logs from successful stages are deleted before artifact storage.
+
 ## Project structure
 
 ```

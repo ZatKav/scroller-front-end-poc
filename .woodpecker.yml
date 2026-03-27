@@ -14,9 +14,21 @@ steps:
   - name: test-unit
     image: node:20-alpine
     commands:
-      - cd scroller-front-end-poc
-      - npm ci
-      - npm test
+      - |
+        mkdir -p ci-logs
+        LOG="ci-logs/test-unit.txt"
+        set +e
+        sh -eu -c '
+          cd scroller-front-end-poc
+          npm ci
+          npm run test:allure:unit
+        ' >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then
+          rm -f "$LOG"
+        fi
+        exit $STATUS
     when:
       event:
         - pull_request
@@ -29,9 +41,21 @@ steps:
   - name: test-e2e
     image: mcr.microsoft.com/playwright:v1.55.1-noble
     commands:
-      - cd scroller-front-end-poc
-      - npm ci
-      - npm run test:e2e -- --pass-with-no-tests
+      - |
+        mkdir -p ci-logs
+        LOG="ci-logs/test-e2e.txt"
+        set +e
+        sh -eu -c '
+          cd scroller-front-end-poc
+          npm ci
+          npm run test:e2e:ci
+        ' >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then
+          rm -f "$LOG"
+        fi
+        exit $STATUS
     when:
       event:
         - pull_request
@@ -142,3 +166,72 @@ steps:
           rm -f "$LOG"
         fi
         exit $STATUS
+
+  # ============================================================================
+  # Generate Allure Report (always run to preserve diagnostics)
+  # ============================================================================
+  - name: allure-report
+    image: host.containers.internal:5000/allure-cli:2.24.1
+    when:
+      status: [ success, failure ]
+    commands:
+      - |
+        mkdir -p ci-logs
+        LOG="ci-logs/allure-report.txt"
+        set +e
+        sh -eu -c '
+          echo "Generating Allure report from available test artifacts..."
+          mkdir -p allure-results
+          for RESULTS_DIR in scroller-front-end-poc/allure-results-unit scroller-front-end-poc/allure-results-e2e; do
+            if [ -d "$RESULTS_DIR" ] && [ "$(ls -A "$RESULTS_DIR" 2>/dev/null)" ]; then
+              echo "Found test results in $RESULTS_DIR"
+              cp -r "$RESULTS_DIR"/. allure-results/ 2>/dev/null || true
+            else
+              echo "No test results found in $RESULTS_DIR"
+            fi
+          done
+          if [ "$(ls -A allure-results 2>/dev/null)" ]; then
+            allure generate allure-results --clean -o allure-report
+            echo "Allure report generated at allure-report/index.html"
+          else
+            echo "No Allure result inputs found; skipping report generation"
+          fi
+        ' >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then
+          rm -f "$LOG"
+        fi
+        exit $STATUS
+
+  # ============================================================================
+  # Store Report + Retained Failure Logs Locally
+  # ============================================================================
+  - name: store-report-locally
+    image: alpine:latest
+    when:
+      status: [ success, failure ]
+    commands:
+      - |
+        REPORT_DIR="/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}"
+        mkdir -p "$REPORT_DIR"
+
+        if [ -d "allure-report" ] && [ "$(ls -A allure-report 2>/dev/null)" ]; then
+          cp -r allure-report/. "$REPORT_DIR/"
+          echo "Report stored at: $REPORT_DIR/index.html"
+          LATEST_DIR="/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/latest"
+          rm -f "$LATEST_DIR"
+          ln -sf "${CI_COMMIT_SHA}" "$LATEST_DIR"
+          echo "Build report URL: http://localhost:8080/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/index.html"
+          echo "Latest report URL: http://localhost:8080/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/latest/index.html"
+        else
+          echo "No Allure report directory found; skipping report copy"
+        fi
+
+        if [ -d "ci-logs" ] && [ "$(ls -A ci-logs 2>/dev/null)" ]; then
+          mkdir -p "$REPORT_DIR/ci-logs"
+          cp -r ci-logs/. "$REPORT_DIR/ci-logs/" 2>/dev/null || true
+          echo "CI logs URL: http://localhost:8080/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/ci-logs/"
+        else
+          echo "No retained CI logs found; skipping ci-logs copy"
+        fi
