@@ -73,7 +73,7 @@ make test
 CI-specific test commands used by Woodpecker:
 
 - `npm run test:allure:unit` emits unit-test Allure results (`scroller-front-end-poc/allure-results-unit`).
-- `npm run test:e2e:ci` runs the pre-deploy login Playwright check against a local app server and emits e2e Allure results (`scroller-front-end-poc/allure-results-e2e`).
+- `npm run test:e2e:ci` runs the pre-deploy login Playwright check on Chromium against a local app server and emits e2e Allure results (`scroller-front-end-poc/allure-results-e2e`).
 - `npm run test:e2e:deploy-smoke` runs the post-deploy host login smoke check against `http://host.containers.internal:8410`.
 
 Default seeded login credentials for local/CI checks:

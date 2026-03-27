@@ -35,7 +35,7 @@ Add a real login Playwright test in CI before build/deploy, add a post-deploy ho
   - `tests/deploy-login.smoke.spec.ts` for post-deploy host smoke.
   - `tests/helpers/login.ts` shared helper that performs username/password login and verifies browser leaves `/login`.
 - Updated package scripts:
-  - `test:e2e:ci` now runs real tests (no `--pass-with-no-tests`).
+  - `test:e2e:ci` now runs real tests (no `--pass-with-no-tests`) and targets Chromium in CI.
   - `test:e2e:deploy-smoke` runs host-targeted smoke with deploy mode env.
 - Aligned Playwright runtime versions across repo and CI:
   - Pinned `@playwright/test` and `playwright` to `1.58.2` in package metadata.
