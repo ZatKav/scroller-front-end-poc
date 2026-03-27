@@ -39,7 +39,7 @@ steps:
   # E2E Tests
   # ============================================================================
   - name: test-e2e
-    image: mcr.microsoft.com/playwright:v1.55.1-noble
+    image: mcr.microsoft.com/playwright:v1.58.2-noble
     environment:
       JWT_SECRET_KEY: f74ed097f9240073570d2534bb8e4184
       E2E_LOGIN_USERNAME: jack
@@ -175,7 +175,7 @@ steps:
   # Post-deploy host login smoke check (main branch only)
   # ============================================================================
   - name: post-deploy-login-smoke
-    image: mcr.microsoft.com/playwright:v1.55.1-noble
+    image: mcr.microsoft.com/playwright:v1.58.2-noble
     environment:
       E2E_LOGIN_USERNAME: jack
       E2E_LOGIN_PASSWORD: password123

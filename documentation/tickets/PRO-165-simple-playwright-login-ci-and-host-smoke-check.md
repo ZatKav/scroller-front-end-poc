@@ -37,6 +37,9 @@ Add a real login Playwright test in CI before build/deploy, add a post-deploy ho
 - Updated package scripts:
   - `test:e2e:ci` now runs real tests (no `--pass-with-no-tests`).
   - `test:e2e:deploy-smoke` runs host-targeted smoke with deploy mode env.
+- Aligned Playwright runtime versions across repo and CI:
+  - Pinned `@playwright/test` and `playwright` to `1.58.2` in package metadata.
+  - Updated CI Playwright container image tags to `mcr.microsoft.com/playwright:v1.58.2-noble`.
 - Updated seeded auth users to deterministic credentials used by CI checks:
   - `jack / password123`
   - `phil / manager123`
@@ -56,6 +59,7 @@ Add a real login Playwright test in CI before build/deploy, add a post-deploy ho
 - `README.md`: Documented auth/login env requirements, new CI/deploy Playwright commands, and seeded credentials used by checks.
 - `scroller-front-end-poc/playwright.config.ts`: Added dual execution mode (local pre-deploy vs host deploy-smoke), smoke test selection, and mode-specific browser project selection.
 - `scroller-front-end-poc/package.json`: Replaced pass-with-no-tests CI command with real Playwright run; added deploy smoke script.
+- `scroller-front-end-poc/package-lock.json`: Synced lock metadata to pinned Playwright `1.58.2`.
 - `scroller-front-end-poc/data/users.json`: Updated seeded bcrypt hashes to deterministic credentials for automated login checks.
 - `scroller-front-end-poc/tests/helpers/login.ts`: Added shared login helper and redirect assertion.
 - `scroller-front-end-poc/tests/login.spec.ts`: Added pre-deploy login spec.
