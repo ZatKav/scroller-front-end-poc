@@ -42,6 +42,9 @@ next-env.d.ts
 # e2e testing (Playwright)
 /playwright-report/
 /test-results/
+/allure-results/
+/allure-results-*/
+/allure-report/
 
 # IDE / Editor folders
 .vscode/

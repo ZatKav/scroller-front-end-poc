@@ -2,3 +2,12 @@
 *.pem
 .vscode/
 .idea/
+
+# CI/test artifacts
+allure-results/
+allure-results-*/
+allure-report/
+ci-logs/
+scroller-front-end-poc/allure-results/
+scroller-front-end-poc/allure-results-*/
+scroller-front-end-poc/allure-report/

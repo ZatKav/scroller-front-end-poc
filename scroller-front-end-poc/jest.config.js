@@ -6,11 +6,15 @@ const createJestConfig = nextJest({
 
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testEnvironment: 'jsdom',
+  testEnvironment: 'jest-allure2-reporter/environment-jsdom',
   testPathIgnorePatterns: [
     '<rootDir>/.next/',
     '<rootDir>/node_modules/',
     '<rootDir>/tests/', // Playwright E2E tests
+  ],
+  reporters: [
+    'default',
+    ['jest-allure2-reporter', { resultsDir: 'allure-results-unit' }],
   ],
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
