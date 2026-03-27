@@ -38,6 +38,12 @@ Required backend proxy variables:
 
 - `SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL` (default `http://localhost:8300`)
 - `SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY`
+- `JWT_SECRET_KEY` (required for auth routes and login checks)
+
+CI/deploy login checks also require:
+
+- `E2E_LOGIN_USERNAME` (defaults to `jack` in CI)
+- `E2E_LOGIN_PASSWORD` (defaults to `password123` in CI)
 
 ## Scroller customer interactions DB client
 
@@ -67,7 +73,13 @@ make test
 CI-specific test commands used by Woodpecker:
 
 - `npm run test:allure:unit` emits unit-test Allure results (`scroller-front-end-poc/allure-results-unit`).
-- `npm run test:e2e:ci` keeps Playwright `--pass-with-no-tests` behavior and emits e2e Allure results (`scroller-front-end-poc/allure-results-e2e`).
+- `npm run test:e2e:ci` runs the pre-deploy login Playwright check on Chromium against a local app server and emits e2e Allure results (`scroller-front-end-poc/allure-results-e2e`).
+- `npm run test:e2e:deploy-smoke` runs the post-deploy host login smoke check against `http://host.containers.internal:8410`.
+
+Default seeded login credentials for local/CI checks:
+
+- Username `jack` / Password `password123`
+- Username `phil` / Password `manager123`
 
 ## CI report and log artifacts
 

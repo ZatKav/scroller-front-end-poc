@@ -13,6 +13,9 @@ spec:
     - name: scroller-front-end
       image: host.containers.internal:5000/scroller-front-end-poc:latest
       imagePullPolicy: Always
+      env:
+        - name: JWT_SECRET_KEY
+          value: f74ed097f9240073570d2534bb8e4184
       ports:
         - containerPort: 8410
           hostPort: 8410
