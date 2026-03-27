@@ -3,7 +3,7 @@ WORKDIR /app
 
 # Install dependencies and build the Next.js app
 COPY package*.json ./
-RUN npm ci --cache /tmp/.npm && rm -rf /tmp/.npm
+RUN npm ci
 COPY . .
 RUN npm run build
 
@@ -14,7 +14,7 @@ ENV NODE_ENV=production \
     PORT=8410
 
 COPY package*.json ./
-RUN npm ci --omit=dev --cache /tmp/.npm && rm -rf /tmp/.npm
+RUN npm ci --omit=dev
 
 # Copy the standalone build output and public assets
 COPY --from=builder /app/.next/standalone ./

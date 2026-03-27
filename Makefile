@@ -29,24 +29,11 @@ REGISTRY_IMAGE ?= host.containers.internal:5000/scroller-front-end-poc:latest
 PODMAN_KUBE_MANIFEST ?= podman-scroller-kube.yaml
 PODMAN_HEALTHCHECK_URL ?= http://localhost:8410
 PODMAN_POD_NAME ?= pod_scroller_front_end
-PODMAN_TMPDIR ?= /tmp
 
 .PHONY: podman-build
 podman-build: ## Build the scroller Podman image
 	@echo "Building image $(PODMAN_IMG)..."
-	podman build --tmpdir $(PODMAN_TMPDIR) -t $(PODMAN_IMG) -f scroller-front-end-poc/Containerfile scroller-front-end-poc
-
-.PHONY: podman-ci-prune
-podman-ci-prune: ## Prune unused Podman artifacts to free CI build disk
-	@echo "Podman disk usage before prune:"
-	-podman system df || true
-	@echo "Pruning unused containers, images, volumes, and build cache..."
-	-podman container prune -f || true
-	-podman image prune -a -f || true
-	-podman volume prune -f || true
-	-podman builder prune -a -f || true
-	@echo "Podman disk usage after prune:"
-	-podman system df || true
+	podman build -t $(PODMAN_IMG) -f scroller-front-end-poc/Containerfile scroller-front-end-poc
 
 .PHONY: podman-start
 podman-start: ## Start the scroller container (detached). Use PODMAN_ENV_FILE=.env for runtime config

@@ -83,7 +83,6 @@ Default seeded login credentials for local/CI checks:
 
 ## CI report and log artifacts
 
-- If host runner disk pressure occurs, run `make podman-ci-prune` as a one-off cleanup before retrying build/deploy.
 - `.woodpecker.yml` now includes `allure-report` and `store-report-locally` post-run stages that execute on both successful and failed pipelines.
 - Combined Allure HTML output is published to `/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/index.html`, and `latest` is updated per branch.
 - Only retained problem-stage logs are copied into `/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/ci-logs/`; logs from successful stages are deleted before artifact storage.
