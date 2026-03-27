@@ -103,7 +103,7 @@ steps:
               exit 1
             fi
           fi
-          make podman-build
+          TMPDIR=/tmp make podman-build
           make podman-push
         ' >"$LOG" 2>&1
         STATUS=$?

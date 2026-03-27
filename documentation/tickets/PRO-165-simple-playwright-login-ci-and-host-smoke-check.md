@@ -40,6 +40,10 @@ Add a real login Playwright test in CI before build/deploy, add a post-deploy ho
 - Aligned Playwright runtime versions across repo and CI:
   - Pinned `@playwright/test` and `playwright` to `1.58.2` in package metadata.
   - Updated CI Playwright container image tags to `mcr.microsoft.com/playwright:v1.58.2-noble`.
+- Added CI storage pressure mitigation for main deploy pipeline:
+  - Added `make podman-ci-prune` for one-off host cleanup when disk pressure occurs.
+  - `podman build` now uses `--tmpdir /tmp`.
+  - Containerfile dependency install layers now clear npm cache in-layer.
 - Updated seeded auth users to deterministic credentials used by CI checks:
   - `jack / password123`
   - `phil / manager123`
@@ -60,6 +64,8 @@ Add a real login Playwright test in CI before build/deploy, add a post-deploy ho
 - `scroller-front-end-poc/playwright.config.ts`: Added dual execution mode (local pre-deploy vs host deploy-smoke), smoke test selection, and mode-specific browser project selection.
 - `scroller-front-end-poc/package.json`: Replaced pass-with-no-tests CI command with real Playwright run; added deploy smoke script.
 - `scroller-front-end-poc/package-lock.json`: Synced lock metadata to pinned Playwright `1.58.2`.
+- `Makefile`: Added `podman-ci-prune` target and `PODMAN_TMPDIR` support for `podman-build`.
+- `scroller-front-end-poc/Containerfile`: Cleans npm cache during dependency install layers to reduce layer storage pressure.
 - `scroller-front-end-poc/data/users.json`: Updated seeded bcrypt hashes to deterministic credentials for automated login checks.
 - `scroller-front-end-poc/tests/helpers/login.ts`: Added shared login helper and redirect assertion.
 - `scroller-front-end-poc/tests/login.spec.ts`: Added pre-deploy login spec.
