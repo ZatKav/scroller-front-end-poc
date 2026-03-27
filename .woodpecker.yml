@@ -40,6 +40,10 @@ steps:
   # ============================================================================
   - name: test-e2e
     image: mcr.microsoft.com/playwright:v1.55.1-noble
+    environment:
+      JWT_SECRET_KEY: f74ed097f9240073570d2534bb8e4184
+      E2E_LOGIN_USERNAME: jack
+      E2E_LOGIN_PASSWORD: password123
     commands:
       - |
         mkdir -p ci-logs
@@ -159,6 +163,37 @@ steps:
             fi
           fi
           make podman-deploy-ci
+        ' >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then
+          rm -f "$LOG"
+        fi
+        exit $STATUS
+
+  # ============================================================================
+  # Post-deploy host login smoke check (main branch only)
+  # ============================================================================
+  - name: post-deploy-login-smoke
+    image: mcr.microsoft.com/playwright:v1.55.1-noble
+    environment:
+      E2E_LOGIN_USERNAME: jack
+      E2E_LOGIN_PASSWORD: password123
+    depends_on:
+      - deploy-main
+    when:
+      event: push
+      branch: main
+      status: success
+    commands:
+      - |
+        mkdir -p ci-logs
+        LOG="ci-logs/post-deploy-login-smoke.txt"
+        set +e
+        sh -eu -c '
+          cd scroller-front-end-poc
+          npm ci
+          npm run test:e2e:deploy-smoke
         ' >"$LOG" 2>&1
         STATUS=$?
         cat "$LOG"
