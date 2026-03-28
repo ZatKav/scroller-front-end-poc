@@ -30,7 +30,7 @@ branch: main
 ## Functional Changes
 
 - `.woodpecker.yml` `allure-report` step now uses `docker.io/frankescobar/allure-docker-service:2.27.0`.
-- `.woodpecker.yml` `allure-report` step writes diagnostics directly to job stdout/stderr instead of `ci-logs/allure-report.txt`, avoiding workspace permission errors in restricted runtimes.
+- `.woodpecker.yml` `allure-report` step now writes diagnostics to `/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/ci-logs/allure-report.txt` when writable, and falls back to stdout/stderr-only logging when not writable.
 - Allure report generation behavior is preserved (`allure generate ...`) while preventing the HTTPS-to-HTTP registry protocol mismatch during image pull.
 
 ## Validation
@@ -39,9 +39,9 @@ branch: main
 - `podman pull docker.io/frankescobar/allure-docker-service:2.27.0` succeeds.
 - `npm run test:allure:unit` succeeds in `scroller-front-end-poc/` (5 suites passed).
 - `podman run --rm -v "$REPO":/work -w /work docker.io/frankescobar/allure-docker-service:2.27.0 sh -lc 'allure generate allure-results --clean -o allure-report && test -f allure-report/index.html && allure --version'` succeeds.
-- Follow-up CI failure addressed: `/bin/sh: cannot create ci-logs/allure-report.txt: Permission denied` by removing file redirection and using direct job logs.
+- Follow-up CI failure addressed: `/bin/sh: cannot create ci-logs/allure-report.txt: Permission denied` by moving log capture to the reports path and adding a fallback path that streams output directly when artifact write is not possible.
 
 ## Changed Files
 
-- `.woodpecker.yml`: switched allure-report job image to public Docker Hub image and removed file-based ci-log redirection in favor of direct step logs.
+- `.woodpecker.yml`: switched allure-report job image to public Docker Hub image; configured report-path log capture with fallback streaming.
 - `documentation/tickets/codex/pro-167-investigate-and-fix-problem-with-scroller-front-end-poc-ci-on-main.md`: ticket artifact with evidence, root cause, fix, and validation.
