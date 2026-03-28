@@ -206,7 +206,7 @@ steps:
   # Generate Allure Report (always run to preserve diagnostics)
   # ============================================================================
   - name: allure-report
-    image: host.containers.internal:5000/allure-cli:2.24.1
+    image: docker.io/frankescobar/allure-docker-service:2.27.0
     when:
       status: [ success, failure ]
     commands:
