@@ -122,12 +122,15 @@ podman-ci-deploy: ## Deploy the scroller pod in CI with failure on deploy errors
 
 .PHONY: podman-deploy-ci
 podman-deploy-ci: ## Pull latest image from registry, redeploy pod, and verify health on port 8410
-	@echo "Pulling published image: $(REGISTRY_IMAGE)"
-	podman pull --tls-verify=false $(REGISTRY_IMAGE)
-	@echo "Stopping existing pod (if any)..."
-	-podman play kube --down $(PODMAN_KUBE_MANIFEST) 2>/dev/null || true
-	@echo "Deploying from $(PODMAN_KUBE_MANIFEST)..."
-	podman play kube $(PODMAN_KUBE_MANIFEST)
+	@tmp_reg_conf="$$(mktemp)"; \
+	trap 'rm -f "$$tmp_reg_conf"' EXIT; \
+	printf '%s\n' 'unqualified-search-registries = ["docker.io"]' '[[registry]]' 'location = "host.containers.internal:5000"' 'insecure = true' > "$$tmp_reg_conf"; \
+	echo "Pulling published image: $(REGISTRY_IMAGE)"; \
+	CONTAINERS_REGISTRIES_CONF="$$tmp_reg_conf" podman pull --tls-verify=false $(REGISTRY_IMAGE); \
+	echo "Stopping existing pod (if any)..."; \
+	CONTAINERS_REGISTRIES_CONF="$$tmp_reg_conf" podman play kube --down $(PODMAN_KUBE_MANIFEST) 2>/dev/null || true; \
+	echo "Deploying from $(PODMAN_KUBE_MANIFEST)..."; \
+	CONTAINERS_REGISTRIES_CONF="$$tmp_reg_conf" podman play kube --tls-verify=false $(PODMAN_KUBE_MANIFEST)
 	@echo "Waiting for health endpoint: $(PODMAN_HEALTHCHECK_URL)"
 	@attempts=45; \
 	until curl -fsS "$(PODMAN_HEALTHCHECK_URL)" > /dev/null; do \

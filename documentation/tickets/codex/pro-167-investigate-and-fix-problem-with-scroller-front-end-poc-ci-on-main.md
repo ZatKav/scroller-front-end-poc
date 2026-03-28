@@ -32,6 +32,7 @@ branch: main
 - `.woodpecker.yml` `allure-report` step now uses `docker.io/andgineer/allure:2.36.0` (root-based image).
 - The step now follows the same retained-log pattern used by other pipelines in this workspace: write `ci-logs/allure-report.txt` in workspace, print it to job output, and keep it only on failure.
 - Allure generation is executed via `/opt/allure-2.36.0/bin/allure generate ...`, preserving report behavior while avoiding the insecure-registry pull issue.
+- `Makefile` `podman-deploy-ci` now creates a temporary registries config marking `host.containers.internal:5000` as insecure and applies it to both `podman pull` and `podman play kube` during main-branch deploy.
 
 ## Validation
 
@@ -39,8 +40,10 @@ branch: main
 - `podman pull docker.io/andgineer/allure:2.36.0` succeeds.
 - `podman run --rm docker.io/andgineer/allure:2.36.0 sh -lc 'id -u; /opt/allure-2.36.0/bin/allure --version'` confirms root execution and available Allure CLI (`2.36.0`).
 - `npm run test:allure:unit` succeeds in `scroller-front-end-poc/` (5 suites passed).
+- `make -n podman-deploy-ci` confirms deploy commands now run with `CONTAINERS_REGISTRIES_CONF` and `--tls-verify=false` for the local registry image path.
 
 ## Changed Files
 
 - `.woodpecker.yml`: switched allure-report job image to `docker.io/andgineer/allure:2.36.0` and restored workspace `ci-logs` capture flow used by other stable pipelines.
+- `Makefile`: hardened `podman-deploy-ci` with an insecure local-registry config for both pull and kube deploy commands.
 - `documentation/tickets/codex/pro-167-investigate-and-fix-problem-with-scroller-front-end-poc-ci-on-main.md`: ticket artifact with evidence, root cause, fix, and validation.
