@@ -207,13 +207,10 @@ steps:
   # ============================================================================
   - name: allure-report
     image: docker.io/frankescobar/allure-docker-service:2.27.0
-    user: root
     when:
       status: [ success, failure ]
     commands:
       - |
-        mkdir -p ci-logs
-        LOG="ci-logs/allure-report.txt"
         set +e
         sh -eu -c '
           echo "Generating Allure report from available test artifacts..."
@@ -238,12 +235,8 @@ steps:
           else
             echo "No Allure result inputs found; skipping report generation"
           fi
-        ' >"$LOG" 2>&1
+        '
         STATUS=$?
-        cat "$LOG"
-        if [ $STATUS -eq 0 ]; then
-          rm -f "$LOG"
-        fi
         exit $STATUS
 
   # ============================================================================
