@@ -30,7 +30,7 @@ branch: main
 ## Functional Changes
 
 - `.woodpecker.yml` `allure-report` step now uses `docker.io/frankescobar/allure-docker-service:2.27.0`.
-- `.woodpecker.yml` `allure-report` step now writes diagnostics to `/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/ci-logs/allure-report.txt` when writable, and falls back to stdout/stderr-only logging when not writable.
+- `.woodpecker.yml` `allure-report` step now writes diagnostics to `/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/ci-logs/allure-report.txt` and fails the step if that artifact path cannot be written.
 - Allure report generation behavior is preserved (`allure generate ...`) while preventing the HTTPS-to-HTTP registry protocol mismatch during image pull.
 
 ## Validation
@@ -39,9 +39,9 @@ branch: main
 - `podman pull docker.io/frankescobar/allure-docker-service:2.27.0` succeeds.
 - `npm run test:allure:unit` succeeds in `scroller-front-end-poc/` (5 suites passed).
 - `podman run --rm -v "$REPO":/work -w /work docker.io/frankescobar/allure-docker-service:2.27.0 sh -lc 'allure generate allure-results --clean -o allure-report && test -f allure-report/index.html && allure --version'` succeeds.
-- Follow-up CI failure addressed: `/bin/sh: cannot create ci-logs/allure-report.txt: Permission denied` by moving log capture to the reports path and adding a fallback path that streams output directly when artifact write is not possible.
+- Follow-up CI failure addressed: `/bin/sh: cannot create ci-logs/allure-report.txt: Permission denied` by moving log capture to the reports path (strict mode, no fallback).
 
 ## Changed Files
 
-- `.woodpecker.yml`: switched allure-report job image to public Docker Hub image; configured report-path log capture with fallback streaming.
+- `.woodpecker.yml`: switched allure-report job image to public Docker Hub image; configured strict report-path log capture (no fallback).
 - `documentation/tickets/codex/pro-167-investigate-and-fix-problem-with-scroller-front-end-poc-ci-on-main.md`: ticket artifact with evidence, root cause, fix, and validation.

@@ -214,64 +214,36 @@ steps:
         LOG_DIR="/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/ci-logs"
         LOG="${LOG_DIR}/allure-report.txt"
         set +e
-        if mkdir -p "$LOG_DIR" 2>/dev/null && : > "$LOG" 2>/dev/null; then
-          echo "Capturing allure-report logs at $LOG"
-          sh -eu -c '
-            echo "Generating Allure report from available test artifacts..."
-            mkdir -p allure-results
-            for RESULTS_DIR in scroller-front-end-poc/allure-results-unit scroller-front-end-poc/allure-results-e2e; do
-              if [ -d "$RESULTS_DIR" ] && [ "$(ls -A "$RESULTS_DIR" 2>/dev/null)" ]; then
-                echo "Found test results in $RESULTS_DIR"
-                cp -r "$RESULTS_DIR"/. allure-results/ 2>/dev/null || true
-              else
-                echo "No test results found in $RESULTS_DIR"
-              fi
-            done
-            find allure-results -type f -name executor.json | while read -r EXECUTOR_FILE; do
-              if [ "$(tr -d "[:space:]" < "$EXECUTOR_FILE")" = "{}" ]; then
-                echo "Removing empty executor metadata: $EXECUTOR_FILE"
-                rm -f "$EXECUTOR_FILE"
-              fi
-            done
-            if [ "$(ls -A allure-results 2>/dev/null)" ]; then
-              allure generate allure-results --clean -o allure-report
-              echo "Allure report generated at allure-report/index.html"
+        mkdir -p "$LOG_DIR"
+        echo "Capturing allure-report logs at $LOG"
+        sh -eu -c '
+          echo "Generating Allure report from available test artifacts..."
+          mkdir -p allure-results
+          for RESULTS_DIR in scroller-front-end-poc/allure-results-unit scroller-front-end-poc/allure-results-e2e; do
+            if [ -d "$RESULTS_DIR" ] && [ "$(ls -A "$RESULTS_DIR" 2>/dev/null)" ]; then
+              echo "Found test results in $RESULTS_DIR"
+              cp -r "$RESULTS_DIR"/. allure-results/ 2>/dev/null || true
             else
-              echo "No Allure result inputs found; skipping report generation"
+              echo "No test results found in $RESULTS_DIR"
             fi
-          ' >"$LOG" 2>&1
-          STATUS=$?
-          cat "$LOG"
-          if [ $STATUS -eq 0 ]; then
-            rm -f "$LOG"
+          done
+          find allure-results -type f -name executor.json | while read -r EXECUTOR_FILE; do
+            if [ "$(tr -d "[:space:]" < "$EXECUTOR_FILE")" = "{}" ]; then
+              echo "Removing empty executor metadata: $EXECUTOR_FILE"
+              rm -f "$EXECUTOR_FILE"
+            fi
+          done
+          if [ "$(ls -A allure-results 2>/dev/null)" ]; then
+            allure generate allure-results --clean -o allure-report
+            echo "Allure report generated at allure-report/index.html"
+          else
+            echo "No Allure result inputs found; skipping report generation"
           fi
-        else
-          echo "Warning: unable to write $LOG; streaming allure-report output only"
-          sh -eu -c '
-            echo "Generating Allure report from available test artifacts..."
-            mkdir -p allure-results
-            for RESULTS_DIR in scroller-front-end-poc/allure-results-unit scroller-front-end-poc/allure-results-e2e; do
-              if [ -d "$RESULTS_DIR" ] && [ "$(ls -A "$RESULTS_DIR" 2>/dev/null)" ]; then
-                echo "Found test results in $RESULTS_DIR"
-                cp -r "$RESULTS_DIR"/. allure-results/ 2>/dev/null || true
-              else
-                echo "No test results found in $RESULTS_DIR"
-              fi
-            done
-            find allure-results -type f -name executor.json | while read -r EXECUTOR_FILE; do
-              if [ "$(tr -d "[:space:]" < "$EXECUTOR_FILE")" = "{}" ]; then
-                echo "Removing empty executor metadata: $EXECUTOR_FILE"
-                rm -f "$EXECUTOR_FILE"
-              fi
-            done
-            if [ "$(ls -A allure-results 2>/dev/null)" ]; then
-              allure generate allure-results --clean -o allure-report
-              echo "Allure report generated at allure-report/index.html"
-            else
-              echo "No Allure result inputs found; skipping report generation"
-            fi
-          '
-          STATUS=$?
+        ' >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then
+          rm -f "$LOG"
         fi
         exit $STATUS
 
