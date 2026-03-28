@@ -206,15 +206,14 @@ steps:
   # Generate Allure Report (always run to preserve diagnostics)
   # ============================================================================
   - name: allure-report
-    image: docker.io/frankescobar/allure-docker-service:2.27.0
+    image: docker.io/andgineer/allure:2.36.0
     when:
       status: [ success, failure ]
     commands:
       - |
-        LOG_DIR="/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/ci-logs"
-        LOG="${LOG_DIR}/allure-report.txt"
+        mkdir -p ci-logs
+        LOG="ci-logs/allure-report.txt"
         set +e
-        mkdir -p "$LOG_DIR"
         echo "Capturing allure-report logs at $LOG"
         sh -eu -c '
           echo "Generating Allure report from available test artifacts..."
@@ -234,7 +233,7 @@ steps:
             fi
           done
           if [ "$(ls -A allure-results 2>/dev/null)" ]; then
-            allure generate allure-results --clean -o allure-report
+            /opt/allure-2.36.0/bin/allure generate allure-results --clean -o allure-report
             echo "Allure report generated at allure-report/index.html"
           else
             echo "No Allure result inputs found; skipping report generation"
