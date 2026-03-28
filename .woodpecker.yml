@@ -207,6 +207,7 @@ steps:
   # ============================================================================
   - name: allure-report
     image: docker.io/frankescobar/allure-docker-service:2.27.0
+    user: root
     when:
       status: [ success, failure ]
     commands:

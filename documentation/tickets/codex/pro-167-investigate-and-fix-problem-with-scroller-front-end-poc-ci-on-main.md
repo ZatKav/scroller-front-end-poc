@@ -30,6 +30,7 @@ branch: main
 ## Functional Changes
 
 - `.woodpecker.yml` `allure-report` step now uses `docker.io/frankescobar/allure-docker-service:2.27.0`.
+- `.woodpecker.yml` `allure-report` step now runs as `user: root` so retained log/report writes succeed even when workspace paths are owned by root from prior steps.
 - Allure report generation behavior is preserved (`allure generate ...`) while preventing the HTTPS-to-HTTP registry protocol mismatch during image pull.
 
 ## Validation
@@ -38,8 +39,9 @@ branch: main
 - `podman pull docker.io/frankescobar/allure-docker-service:2.27.0` succeeds.
 - `npm run test:allure:unit` succeeds in `scroller-front-end-poc/` (5 suites passed).
 - `podman run --rm -v "$REPO":/work -w /work docker.io/frankescobar/allure-docker-service:2.27.0 sh -lc 'allure generate allure-results --clean -o allure-report && test -f allure-report/index.html && allure --version'` succeeds.
+- Follow-up CI failure addressed: `/bin/sh: cannot create ci-logs/allure-report.txt: Permission denied` by running the step as root.
 
 ## Changed Files
 
-- `.woodpecker.yml`: switched allure-report job image to public Docker Hub image that pulls over HTTPS.
+- `.woodpecker.yml`: switched allure-report job image to public Docker Hub image and set `user: root` for write-permission compatibility.
 - `documentation/tickets/codex/pro-167-investigate-and-fix-problem-with-scroller-front-end-poc-ci-on-main.md`: ticket artifact with evidence, root cause, fix, and validation.
