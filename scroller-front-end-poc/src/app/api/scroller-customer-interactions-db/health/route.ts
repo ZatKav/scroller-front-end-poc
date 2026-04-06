@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL =
-  process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL || 'http://localhost:8300';
+  process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL || 'http://localhost:8400';
 const SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY = process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY;
 
 export async function GET(): Promise<NextResponse> {

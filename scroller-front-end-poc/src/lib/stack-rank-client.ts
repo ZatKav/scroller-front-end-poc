@@ -12,7 +12,7 @@ export class StackRankClientError extends Error {
 
 export async function fetchStackRankImages(): Promise<StackRankImage[]> {
   const baseUrl =
-    process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL ?? 'http://localhost:8300';
+    process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL ?? 'http://localhost:8400';
   const apiKey = process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY;
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };

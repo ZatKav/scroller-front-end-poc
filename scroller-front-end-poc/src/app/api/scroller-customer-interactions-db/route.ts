@@ -4,12 +4,8 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL =
-  process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL || 'http://localhost:8300';
+  process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL || 'http://localhost:8400';
 const SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY = process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY;
-
-if (!SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY) {
-  console.error('SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY environment variable is not set');
-}
 
 function getPathFromRequest(request: NextRequest): string | null {
   const { searchParams } = new URL(request.url);
@@ -30,6 +26,7 @@ function getProxyHeaders(): Record<string, string> {
 }
 
 function getMissingApiKeyResponse(): NextResponse {
+  console.error('SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY environment variable is not set');
   return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
 }
 

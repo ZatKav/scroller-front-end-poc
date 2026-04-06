@@ -36,8 +36,8 @@ cp scroller-front-end-poc/.env.example scroller-front-end-poc/.env.local
 
 Required backend proxy variables:
 
-- `SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL` (default `http://localhost:8300`)
-- `SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY`
+- `SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL` (default `http://localhost:8400`)
+- `SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY` (must match `API_KEY` in `scroller-customer-interactions-db`)
 - `JWT_SECRET_KEY` (required for auth routes and login checks)
 
 CI/deploy login checks also require:
