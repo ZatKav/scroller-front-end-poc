@@ -16,18 +16,24 @@ spec:
       env:
         - name: JWT_SECRET_KEY
           value: f74ed097f9240073570d2534bb8e4184
+        - name: SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL
+          value: http://host.containers.internal:8400
+        - name: SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY
+          value: a9e08181c6f01244edc35813e387102bd9c889d014d10d27d940d62d7aaf827d
       ports:
         - containerPort: 8410
           hostPort: 8410
       readinessProbe:
         httpGet:
-          path: /
+          host: pod_scroller_front_end
+          path: /login
           port: 8410
         initialDelaySeconds: 10
         periodSeconds: 10
       livenessProbe:
         httpGet:
-          path: /
+          host: pod_scroller_front_end
+          path: /login
           port: 8410
         initialDelaySeconds: 20
         periodSeconds: 30
