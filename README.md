@@ -44,6 +44,8 @@ CI/deploy login checks also require:
 
 - `E2E_LOGIN_USERNAME` (defaults to `jack` in CI)
 - `E2E_LOGIN_PASSWORD` (defaults to `password123` in CI)
+- `SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL` (for direct Playwright Node-side verification calls)
+- `SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY` (required by both Next proxy routes and direct Playwright verification calls)
 
 ## Scroller customer interactions DB client
 
@@ -73,7 +75,7 @@ make test
 CI-specific test commands used by Woodpecker:
 
 - `npm run test:allure:unit` emits unit-test Allure results (`scroller-front-end-poc/allure-results-unit`).
-- `npm run test:e2e:ci` runs the pre-deploy login Playwright check on Chromium against a local app server and emits e2e Allure results (`scroller-front-end-poc/allure-results-e2e`).
+- `npm run test:e2e:ci` runs the pre-deploy login + scroller interaction Playwright check on Chromium against a local app server and emits e2e Allure results (`scroller-front-end-poc/allure-results-e2e`).
 - `npm run test:e2e:deploy-smoke` runs the post-deploy host login smoke check against `http://host.containers.internal:8410`.
 
 ## Podman deployment

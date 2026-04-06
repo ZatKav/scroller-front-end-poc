@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { StackRankImage } from '@/types/scroller-customer-interactions-db';
 import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
 
@@ -11,7 +11,12 @@ interface ImageScrollerProps {
 
 export default function ImageScroller({ images, customerId }: ImageScrollerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [imageShownAtMs, setImageShownAtMs] = useState(() => Date.now());
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setImageShownAtMs(Date.now());
+  }, [currentIndex]);
 
   if (images.length === 0 || currentIndex >= images.length) {
     return (
@@ -26,10 +31,14 @@ export default function ImageScroller({ images, customerId }: ImageScrollerProps
   async function handleAction(action: 0 | 1) {
     setSubmitting(true);
     try {
+      const nowMs = Date.now();
+      const viewDurationMs = Math.max(0, Math.floor(nowMs - imageShownAtMs));
+
       await scrollerCustomerInteractionsDbApiClient.createCustomerImageInteraction({
         customer_id: customerId,
         image_id: currentImage.id,
         action,
+        view_duration_ms: viewDurationMs,
       });
       setCurrentIndex((prev) => prev + 1);
     } catch (error) {

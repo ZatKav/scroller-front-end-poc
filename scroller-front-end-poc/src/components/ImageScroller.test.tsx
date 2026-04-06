@@ -24,6 +24,10 @@ beforeEach(() => {
   mockCreateInteraction.mockClear();
 });
 
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 describe('ImageScroller', () => {
   it('renders the first image and both buttons', () => {
     render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
@@ -53,7 +57,10 @@ describe('ImageScroller', () => {
       customer_id: CUSTOMER_ID,
       image_id: 1,
       action: 1,
+      view_duration_ms: expect.any(Number),
     });
+    expect(Number.isInteger(mockCreateInteraction.mock.calls[0][0].view_duration_ms)).toBe(true);
+    expect(mockCreateInteraction.mock.calls[0][0].view_duration_ms).toBeGreaterThanOrEqual(0);
 
     await waitFor(() => {
       expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/jpeg;base64,BBBB');
@@ -70,7 +77,10 @@ describe('ImageScroller', () => {
       customer_id: CUSTOMER_ID,
       image_id: 1,
       action: 0,
+      view_duration_ms: expect.any(Number),
     });
+    expect(Number.isInteger(mockCreateInteraction.mock.calls[0][0].view_duration_ms)).toBe(true);
+    expect(mockCreateInteraction.mock.calls[0][0].view_duration_ms).toBeGreaterThanOrEqual(0);
 
     await waitFor(() => {
       expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/jpeg;base64,BBBB');
@@ -90,6 +100,44 @@ describe('ImageScroller', () => {
     await waitFor(() => {
       expect(screen.getByText('No more images')).toBeInTheDocument();
     });
+  });
+
+  it('measures duration per displayed image and resets after advancing', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-06T10:00:00.000Z'));
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+    jest.setSystemTime(new Date('2026-04-06T10:00:01.500Z'));
+    await user.click(screen.getByRole('button', { name: 'Like' }));
+
+    expect(mockCreateInteraction).toHaveBeenNthCalledWith(1, {
+      customer_id: CUSTOMER_ID,
+      image_id: 1,
+      action: 1,
+      view_duration_ms: 1500,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/jpeg;base64,BBBB');
+    });
+
+    jest.setSystemTime(new Date('2026-04-06T10:00:02.250Z'));
+    await user.click(screen.getByRole('button', { name: 'Skip' }));
+
+    expect(mockCreateInteraction).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        customer_id: CUSTOMER_ID,
+        image_id: 2,
+        action: 0,
+        view_duration_ms: expect.any(Number),
+      }),
+    );
+    const secondDuration = mockCreateInteraction.mock.calls[1][0].view_duration_ms as number;
+    expect(Number.isInteger(secondDuration)).toBe(true);
+    expect(secondDuration).toBeGreaterThanOrEqual(0);
+    expect(secondDuration).toBeLessThan(1000);
   });
 
   it('uses "Property image" as alt text when image_summary is null', () => {

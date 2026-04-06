@@ -44,6 +44,7 @@ steps:
       JWT_SECRET_KEY: f74ed097f9240073570d2534bb8e4184
       E2E_LOGIN_USERNAME: jack
       E2E_LOGIN_PASSWORD: password123
+      SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL: http://host.containers.internal:8400
     commands:
       - |
         mkdir -p ci-logs
