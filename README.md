@@ -76,6 +76,29 @@ CI-specific test commands used by Woodpecker:
 - `npm run test:e2e:ci` runs the pre-deploy login Playwright check on Chromium against a local app server and emits e2e Allure results (`scroller-front-end-poc/allure-results-e2e`).
 - `npm run test:e2e:deploy-smoke` runs the post-deploy host login smoke check against `http://host.containers.internal:8410`.
 
+## Podman deployment
+
+Canonical deploy command for both operators and CI:
+
+```bash
+make podman-deploy
+```
+
+What it does:
+
+- pulls `host.containers.internal:5000/scroller-front-end-poc:latest` with local-registry TLS disabled
+- redeploys the pod manifest `podman-scroller-kube.yaml` (pod name `pod_scroller_front_end`)
+- waits for health at `PODMAN_HEALTHCHECK_URL` (`http://localhost:8410` by default)
+
+Legacy command names are retained as compatibility aliases and now call the canonical target:
+
+- `make podman-start`
+- `make podman-ci-deploy`
+- `make podman-deploy-ci`
+
+For CI main deploy, `.woodpecker.yml` uses `make podman-deploy` with
+`PODMAN_HEALTHCHECK_URL=http://host.containers.internal:8410`.
+
 Default seeded login credentials for local/CI checks:
 
 - Username `jack` / Password `password123`

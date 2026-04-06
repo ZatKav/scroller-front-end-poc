@@ -162,7 +162,7 @@ steps:
               exit 1
             fi
           fi
-          make podman-deploy-ci
+          make podman-deploy
         ' >"$LOG" 2>&1
         STATUS=$?
         cat "$LOG"

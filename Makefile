@@ -1,4 +1,4 @@
-.PHONY: help run test-dashboard-unit test-dashboard-e2e test podman-deploy-ci
+.PHONY: help run test-dashboard-unit test-dashboard-e2e test podman-deploy podman-ci-deploy podman-deploy-ci
 
 help:  ## Show this help message
 	@echo "Available targets:"
@@ -36,54 +36,56 @@ podman-build: ## Build the scroller Podman image
 	podman build -t $(PODMAN_IMG) -f scroller-front-end-poc/Containerfile scroller-front-end-poc
 
 .PHONY: podman-start
-podman-start: ## Start the scroller container (detached). Use PODMAN_ENV_FILE=.env for runtime config
-	@echo "Starting container $(PODMAN_CONT) on port $(PODMAN_PORT)..."
-	-podman rm -f $(PODMAN_CONT) >/dev/null 2>&1 || true
-	podman run -d --name $(PODMAN_CONT) -p $(PODMAN_PORT):8410 \
-		$(if $(PODMAN_ENV_FILE),--env-file $(PODMAN_ENV_FILE),) \
-		$(PODMAN_IMG)
+podman-start: ## Legacy alias for the supported pod deployment flow
+	@echo "podman-start is a compatibility alias; using canonical target: podman-deploy"
+	@$(MAKE) podman-deploy
 
 .PHONY: podman-stop
-podman-stop: ## Stop and remove the scroller container
-	@echo "Stopping container $(PODMAN_CONT)..."
-	-podman stop $(PODMAN_CONT) >/dev/null 2>&1 || true
-	-podman rm $(PODMAN_CONT) >/dev/null 2>&1 || true
+podman-stop: ## Stop and remove the scroller pod deployment
+	@echo "Stopping pod deployment $(PODMAN_POD_NAME) if it exists..."
+	-podman play kube --down $(PODMAN_KUBE_MANIFEST) >/dev/null 2>&1 || true
 
 .PHONY: podman-restart
-podman-restart: ## Restart the scroller container
+podman-restart: ## Restart the scroller pod deployment
 	@$(MAKE) podman-stop
 	@$(MAKE) podman-start
 
 .PHONY: podman-logs
-podman-logs: ## View logs from the scroller container
-	@echo "Viewing logs for $(PODMAN_CONT)..."
-	podman logs -f $(PODMAN_CONT)
+podman-logs: ## View logs from the scroller pod deployment
+	@echo "Viewing logs for pod $(PODMAN_POD_NAME)..."
+	podman pod logs -f $(PODMAN_POD_NAME)
 
 .PHONY: podman-shell
-podman-shell: ## Open a shell in the running scroller container
-	@echo "Opening shell in $(PODMAN_CONT)..."
-	podman exec -it $(PODMAN_CONT) /bin/sh
+podman-shell: ## Open a shell in the first running container inside the pod
+	@container_id="$$(podman ps --filter pod=$(PODMAN_POD_NAME) --format '{{.ID}}' | head -n1)"; \
+	if [ -z "$$container_id" ]; then \
+		echo "No running container found for pod $(PODMAN_POD_NAME)"; \
+		exit 1; \
+	fi; \
+	echo "Opening shell in container $$container_id from pod $(PODMAN_POD_NAME)..."; \
+	podman exec -it "$$container_id" /bin/sh
 
 .PHONY: podman-status
-podman-status: ## Check the status of the scroller container
+podman-status: ## Check the status of the scroller pod deployment
+	@echo "Pod status:"
+	@podman pod ps --filter name=$(PODMAN_POD_NAME)
 	@echo "Container status:"
-	@podman ps -a --filter name=$(PODMAN_CONT)
+	@podman ps -a --filter pod=$(PODMAN_POD_NAME)
 
 .PHONY: podman-run
-podman-run: podman-build podman-start ## Build and start the scroller container
-	@echo "Container built and started!"
+podman-run: podman-build podman-push podman-start ## Build, publish, and deploy via the supported pod flow
+	@echo "Image built, published, and deployed via podman-deploy."
 
 .PHONY: podman-rebuild
-podman-rebuild: ## Rebuild the image and restart the container
-	@$(MAKE) podman-stop
+podman-rebuild: ## Rebuild, publish, and redeploy the pod-backed service
 	@$(MAKE) podman-build
-	@$(MAKE) podman-start
+	@$(MAKE) podman-push
+	@$(MAKE) podman-deploy
 
 .PHONY: podman-clean
-podman-clean: ## Stop container and remove the image
-	@echo "Cleaning up container and image..."
-	-podman stop $(PODMAN_CONT) >/dev/null 2>&1 || true
-	-podman rm $(PODMAN_CONT) >/dev/null 2>&1 || true
+podman-clean: ## Stop pod deployment and remove the local image
+	@echo "Cleaning up pod deployment and local image..."
+	-podman play kube --down $(PODMAN_KUBE_MANIFEST) >/dev/null 2>&1 || true
 	-podman rmi $(PODMAN_IMG) >/dev/null 2>&1 || true
 
 .PHONY: podman-push
@@ -97,31 +99,7 @@ podman-push: ## Tag and push the scroller image to the local registry
 # --- Kubernetes deployment targets ---
 
 .PHONY: podman-deploy
-podman-deploy: ## Deploy the scroller pod using Kubernetes manifest
-	@echo "Deploying scroller pod..."
-	@echo "Stopping existing pod if running..."
-	-podman play kube --down podman-scroller-kube.yaml 2>/dev/null || true
-	@echo "Deploying pod with host port mapping..."
-	podman play kube podman-scroller-kube.yaml
-	@echo "Scroller pod deployed!"
-	@echo "Pod status:"
-	@podman pod ls --filter name=pod_scroller_front_end
-	@echo ""
-	@echo "Scroller should be available at: http://localhost:8410"
-
-.PHONY: podman-ci-deploy
-podman-ci-deploy: ## Deploy the scroller pod in CI with failure on deploy errors
-	@echo "Deploying scroller pod (CI)..."
-	@echo "Stopping existing pod if running..."
-	-podman play kube --down podman-scroller-kube.yaml 2>/dev/null || true
-	@echo "Deploying pod with registry image..."
-	podman play kube podman-scroller-kube.yaml
-	@echo "Scroller pod deployed!"
-	@echo "Pod status:"
-	@podman pod ls --filter name=pod_scroller_front_end
-
-.PHONY: podman-deploy-ci
-podman-deploy-ci: ## Pull latest image from registry, redeploy pod, and verify health on port 8410
+podman-deploy: ## Canonical deploy: pull registry image, redeploy pod, and verify health
 	@tmp_reg_conf="$$(mktemp)"; \
 	trap 'rm -f "$$tmp_reg_conf"' EXIT; \
 	printf '%s\n' 'unqualified-search-registries = ["docker.io"]' '[[registry]]' 'location = "host.containers.internal:5000"' 'insecure = true' > "$$tmp_reg_conf"; \
@@ -144,3 +122,12 @@ podman-deploy-ci: ## Pull latest image from registry, redeploy pod, and verify h
 		sleep 2; \
 	done
 	@echo "Deployment healthy at $(PODMAN_HEALTHCHECK_URL)"
+	@echo "Supported deployment pod: $(PODMAN_POD_NAME)"
+
+.PHONY: podman-ci-deploy
+podman-ci-deploy: podman-deploy ## Compatibility alias to canonical deploy target
+	@true
+
+.PHONY: podman-deploy-ci
+podman-deploy-ci: podman-deploy ## Compatibility alias to canonical deploy target
+	@true
