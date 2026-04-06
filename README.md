@@ -87,7 +87,7 @@ make podman-deploy
 What it does:
 
 - pulls `host.containers.internal:5000/scroller-front-end-poc:latest` with local-registry TLS disabled
-- redeploys the pod manifest `podman-scroller-kube.yaml` (pod name `pod_scroller_front_end`)
+- removes any legacy standalone `scroller-front-end-poc-local` container before redeploying the pod manifest `podman-scroller-kube.yaml` (pod name `pod_scroller_front_end`)
 - waits for health at `PODMAN_HEALTHCHECK_URL` (`http://localhost:8410` by default)
 
 Legacy command names are retained as compatibility aliases and now call the canonical target:

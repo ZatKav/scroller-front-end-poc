@@ -44,6 +44,7 @@ podman-start: ## Legacy alias for the supported pod deployment flow
 podman-stop: ## Stop and remove the scroller pod deployment
 	@echo "Stopping pod deployment $(PODMAN_POD_NAME) if it exists..."
 	-podman play kube --down $(PODMAN_KUBE_MANIFEST) >/dev/null 2>&1 || true
+	-podman rm -f $(PODMAN_CONT) >/dev/null 2>&1 || true
 
 .PHONY: podman-restart
 podman-restart: ## Restart the scroller pod deployment
@@ -86,6 +87,7 @@ podman-rebuild: ## Rebuild, publish, and redeploy the pod-backed service
 podman-clean: ## Stop pod deployment and remove the local image
 	@echo "Cleaning up pod deployment and local image..."
 	-podman play kube --down $(PODMAN_KUBE_MANIFEST) >/dev/null 2>&1 || true
+	-podman rm -f $(PODMAN_CONT) >/dev/null 2>&1 || true
 	-podman rmi $(PODMAN_IMG) >/dev/null 2>&1 || true
 
 .PHONY: podman-push
@@ -107,6 +109,8 @@ podman-deploy: ## Canonical deploy: pull registry image, redeploy pod, and verif
 	CONTAINERS_REGISTRIES_CONF="$$tmp_reg_conf" podman pull --tls-verify=false $(REGISTRY_IMAGE); \
 	echo "Stopping existing pod (if any)..."; \
 	CONTAINERS_REGISTRIES_CONF="$$tmp_reg_conf" podman play kube --down $(PODMAN_KUBE_MANIFEST) 2>/dev/null || true; \
+	echo "Removing legacy standalone container $(PODMAN_CONT) if present..."; \
+	podman rm -f $(PODMAN_CONT) >/dev/null 2>&1 || true; \
 	echo "Deploying from $(PODMAN_KUBE_MANIFEST)..."; \
 	CONTAINERS_REGISTRIES_CONF="$$tmp_reg_conf" podman play kube --tls-verify=false $(PODMAN_KUBE_MANIFEST)
 	@echo "Waiting for health endpoint: $(PODMAN_HEALTHCHECK_URL)"

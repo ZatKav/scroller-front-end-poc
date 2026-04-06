@@ -29,7 +29,7 @@ Rationalise overlapping Podman deploy/start targets so a single canonical deploy
 
 ## Functional Changes
 
-- `podman-deploy` now performs hardened registry pull (`--tls-verify=false` with temporary registries config), tears down/redeploys pod manifest, and waits for health.
+- `podman-deploy` now performs hardened registry pull (`--tls-verify=false` with temporary registries config), removes any legacy standalone container, tears down/redeploys pod manifest, and waits for health.
 - `podman-ci-deploy` and `podman-deploy-ci` now alias to `podman-deploy`.
 - `podman-start` now aliases to `podman-deploy`; `podman-stop/status/logs/shell/rebuild/run` were aligned with pod-backed expectations.
 - CI main deployment command switched from `make podman-deploy-ci` to `make podman-deploy` while preserving host health URL override.
