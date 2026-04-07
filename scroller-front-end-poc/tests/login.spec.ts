@@ -4,7 +4,7 @@ import { getCustomerImageInteractions, waitForNewInteraction } from './helpers/s
 
 test('pre-deploy login check passes with valid credentials', async ({ page }) => {
   const user = await loginAndExpectAuthenticated(page);
-  const scrollerImage = page.locator('img[src^="data:image"]').first();
+  const scrollerImage = page.getByTestId('scroller-image');
   await expect(scrollerImage).toBeVisible();
 
   const existingInteractions = await getCustomerImageInteractions(user.id);

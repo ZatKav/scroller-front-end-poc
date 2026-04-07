@@ -51,6 +51,7 @@ export default function ImageScroller({ images, customerId }: ImageScrollerProps
   return (
     <div className="flex flex-col items-center gap-6">
       <img
+        data-testid="scroller-image"
         src={currentImage.image_data!.startsWith('data:') ? currentImage.image_data! : `data:image/jpeg;base64,${currentImage.image_data}`}
         alt={currentImage.image_summary || 'Property image'}
         className="max-w-full max-h-[60vh] rounded-lg shadow-md object-contain"

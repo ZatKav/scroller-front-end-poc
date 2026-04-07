@@ -49,6 +49,18 @@ The ticket requires frontend measurement of per-image view duration and persiste
   - `npx playwright test --project=chromium tests/login.spec.ts --list` (pass; test discovery)
   - Full browser execution remains environment-blocked locally (Playwright browser install/launch constraints in sandbox), so CI is used as source of truth for the final run.
 
+## Follow-up CI Stabilization (2026-04-07, second pass)
+
+- CI signal: the narrowed `img[src^="data:image"]` selector still failed because no matching element was found within timeout.
+- Root cause: selector depended on a specific `src` format, which is not guaranteed at the moment of assertion in CI.
+- Minimal fix:
+  - Added `data-testid="scroller-image"` to the rendered scroller `<img>` in `ImageScroller`.
+  - Updated Playwright login spec to use `page.getByTestId('scroller-image')` for both visibility checks.
+- Supporting validation in this run:
+  - `npm run test -- src/components/ImageScroller.test.tsx` (pass)
+  - `npx playwright test --project=chromium tests/login.spec.ts --list` (pass; test discovery)
+  - Full browser execution remains environment-blocked locally, so CI run on branch is the definitive validation.
+
 ## Changed Files
 
 - `.woodpecker.yml`: wired E2E backend base URL for pre-deploy Playwright run.
@@ -59,3 +71,5 @@ The ticket requires frontend measurement of per-image view duration and persiste
 - `scroller-front-end-poc/tests/helpers/scroller-customer-interactions-db.ts`: new Node-side direct API helper + polling wait for new interaction records.
 - `scroller-front-end-poc/tests/login.spec.ts`: extended login check to Like/Skip actions with persisted action/duration verification.
 - `scroller-front-end-poc/tests/login.spec.ts` (follow-up): narrowed scroller image locator to avoid Playwright strict-mode collisions with non-scroller image-role elements in CI.
+- `scroller-front-end-poc/src/components/ImageScroller.tsx` (follow-up): added stable `data-testid` on scroller image for E2E targeting.
+- `scroller-front-end-poc/tests/login.spec.ts` (second follow-up): switched visibility assertions to `getByTestId('scroller-image')`.
