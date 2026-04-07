@@ -57,6 +57,11 @@ The app now includes a dedicated TypeScript API client and server-side proxy rou
 
 The browser only calls internal Next.js API routes. API keys are injected server-side in the proxy handler.
 
+After login, the protected scroller page loads stack-rank images progressively through the internal
+`/api/stack-rank` route: first 1 image, then the next 3, then the next 10. The first image is rendered
+as soon as the first window returns, and later window failures leave the current image actionable while
+showing a short failure message.
+
 ## Testing
 
 ```bash
