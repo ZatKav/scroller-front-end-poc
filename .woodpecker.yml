@@ -2,10 +2,7 @@
 # Lightweight CI/CD with Podman support
 
 when:
-  event:
-    - pull_request
-    - push
-    - manual
+  evaluate: 'CI_PIPELINE_EVENT == "pull_request" || CI_PIPELINE_EVENT == "manual" || (CI_PIPELINE_EVENT == "push" && CI_COMMIT_BRANCH == "main")'
 
 steps:
   # ============================================================================
@@ -32,7 +29,6 @@ steps:
     when:
       event:
         - pull_request
-        - push
         - manual
 
   # ============================================================================
@@ -65,7 +61,6 @@ steps:
     when:
       event:
         - pull_request
-        - push
         - manual
 
   # ============================================================================
