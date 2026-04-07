@@ -1,5 +1,10 @@
 import type { StackRankImage } from '@/types/scroller-customer-interactions-db';
 
+export interface StackRankWindowOptions {
+  skip?: number;
+  limit?: number;
+}
+
 export class StackRankClientError extends Error {
   constructor(
     message: string,
@@ -10,10 +15,17 @@ export class StackRankClientError extends Error {
   }
 }
 
-export async function fetchStackRankImages(): Promise<StackRankImage[]> {
+export async function fetchStackRankImages({
+  skip = 0,
+  limit = 10,
+}: StackRankWindowOptions = {}): Promise<StackRankImage[]> {
   const baseUrl =
     process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL ?? 'http://localhost:8400';
   const apiKey = process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY;
+  const query = new URLSearchParams({
+    skip: String(skip),
+    limit: String(limit),
+  });
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) {
@@ -22,7 +34,7 @@ export async function fetchStackRankImages(): Promise<StackRankImage[]> {
 
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}/api/images/stack-rank`, {
+    response = await fetch(`${baseUrl}/api/images/stack-rank?${query.toString()}`, {
       headers,
       cache: 'no-store',
     });

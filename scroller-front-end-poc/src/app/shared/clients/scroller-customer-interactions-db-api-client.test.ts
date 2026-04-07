@@ -41,13 +41,17 @@ describe('scrollerCustomerInteractionsDbApiClient', () => {
         text: () => Promise.resolve('Internal Server Error'),
       } as Response);
 
-      const error = await scrollerCustomerInteractionsDbApiClient
-        .healthCheck()
-        .catch((caughtError: unknown) => caughtError as APIError);
+      let error: unknown;
+      try {
+        await scrollerCustomerInteractionsDbApiClient.healthCheck();
+      } catch (caughtError) {
+        error = caughtError;
+      }
 
       expect(error).toBeInstanceOf(APIError);
-      expect(error.status).toBe(500);
-      expect(error.message).toBe('Health check request failed: Internal Server Error');
+      const apiError = error as APIError;
+      expect(apiError.status).toBe(500);
+      expect(apiError.message).toBe('Health check request failed: Internal Server Error');
     });
   });
 
@@ -127,10 +131,24 @@ describe('scrollerCustomerInteractionsDbApiClient', () => {
       const result = await scrollerCustomerInteractionsDbApiClient.getStackRankImages();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/scroller-customer-interactions-db?path=%2Fimages%2Fstack-rank',
+        '/api/scroller-customer-interactions-db?path=%2Fimages%2Fstack-rank%3Fskip%3D0%26limit%3D10',
         expect.any(Object),
       );
       expect(result).toEqual(mockResponse);
+    });
+
+    it('fetches requested stack-rank windows', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([]),
+      } as Response);
+
+      await scrollerCustomerInteractionsDbApiClient.getStackRankImages(1, 3);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/scroller-customer-interactions-db?path=%2Fimages%2Fstack-rank%3Fskip%3D1%26limit%3D3',
+        expect.any(Object),
+      );
     });
   });
 
@@ -142,25 +160,33 @@ describe('scrollerCustomerInteractionsDbApiClient', () => {
         text: () => Promise.resolve('Bad gateway'),
       } as Response);
 
-      const error = await scrollerCustomerInteractionsDbApiClient
-        .getStackRankImages()
-        .catch((caughtError: unknown) => caughtError as APIError);
+      let error: unknown;
+      try {
+        await scrollerCustomerInteractionsDbApiClient.getStackRankImages();
+      } catch (caughtError) {
+        error = caughtError;
+      }
 
       expect(error).toBeInstanceOf(APIError);
-      expect(error.status).toBe(502);
-      expect(error.message).toBe('API request failed: Bad gateway');
+      const apiError = error as APIError;
+      expect(apiError.status).toBe(502);
+      expect(apiError.message).toBe('API request failed: Bad gateway');
     });
 
     it('throws APIError for network failures', async () => {
       mockFetch.mockRejectedValueOnce(new Error('connection dropped'));
 
-      const error = await scrollerCustomerInteractionsDbApiClient
-        .getStackRankImages()
-        .catch((caughtError: unknown) => caughtError as APIError);
+      let error: unknown;
+      try {
+        await scrollerCustomerInteractionsDbApiClient.getStackRankImages();
+      } catch (caughtError) {
+        error = caughtError;
+      }
 
       expect(error).toBeInstanceOf(APIError);
-      expect(error.status).toBe(0);
-      expect(error.message).toBe('Network error: connection dropped');
+      const apiError = error as APIError;
+      expect(apiError.status).toBe(0);
+      expect(apiError.message).toBe('Network error: connection dropped');
     });
   });
 });
