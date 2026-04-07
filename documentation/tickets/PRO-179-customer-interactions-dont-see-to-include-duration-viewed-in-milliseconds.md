@@ -61,6 +61,16 @@ The ticket requires frontend measurement of per-image view duration and persiste
   - `npx playwright test --project=chromium tests/login.spec.ts --list` (pass; test discovery)
   - Full browser execution remains environment-blocked locally, so CI run on branch is the definitive validation.
 
+## Follow-up CI Stabilization (2026-04-07, third pass)
+
+- CI evidence from Playwright error-context snapshots showed the page still at `Loading images...` when the first scroller assertion ran.
+- Root cause: assertion executed before `/api/stack-rank` completed; previous selector hardening alone did not address this readiness race.
+- Minimal fix in Playwright spec:
+  - Start waiting for `GET /api/stack-rank` before login submission.
+  - After login, assert the stack-rank response is `2xx` and includes an `images` array with at least 2 entries (required for Like then Skip on distinct images).
+  - Keep `getByTestId('scroller-image')` and increase visibility timeout to 15s after stack-rank readiness checks.
+- This changes only test synchronization and diagnostics; no production behavior was modified.
+
 ## Changed Files
 
 - `.woodpecker.yml`: wired E2E backend base URL for pre-deploy Playwright run.
@@ -73,3 +83,4 @@ The ticket requires frontend measurement of per-image view duration and persiste
 - `scroller-front-end-poc/tests/login.spec.ts` (follow-up): narrowed scroller image locator to avoid Playwright strict-mode collisions with non-scroller image-role elements in CI.
 - `scroller-front-end-poc/src/components/ImageScroller.tsx` (follow-up): added stable `data-testid` on scroller image for E2E targeting.
 - `scroller-front-end-poc/tests/login.spec.ts` (second follow-up): switched visibility assertions to `getByTestId('scroller-image')`.
+- `scroller-front-end-poc/tests/login.spec.ts` (third follow-up): added explicit `/api/stack-rank` readiness wait and stronger pre-action assertions.
