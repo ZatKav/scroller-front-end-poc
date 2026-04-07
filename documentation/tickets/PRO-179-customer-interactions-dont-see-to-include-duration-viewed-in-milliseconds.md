@@ -40,6 +40,15 @@ The ticket requires frontend measurement of per-image view duration and persiste
 - `npm run test -- src/components/ImageScroller.test.tsx` (pass)
 - Playwright E2E DB-backed flow implemented but not executed in this run (requires running backend and API key in environment).
 
+## Follow-up CI Stabilization (2026-04-07)
+
+- CI signal: `test-e2e` failed in `tests/login.spec.ts` because `getByRole('img')` matched two elements in strict mode (the scroller image and a Next.js devtools SVG).
+- Minimal fix: narrowed the E2E image visibility selector to `page.locator('img[src^="data:image"]').first()` and reused it for both pre-Like and pre-Skip assertions.
+- Supporting validation in this run:
+  - `npm run test -- src/components/ImageScroller.test.tsx` (pass)
+  - `npx playwright test --project=chromium tests/login.spec.ts --list` (pass; test discovery)
+  - Full browser execution remains environment-blocked locally (Playwright browser install/launch constraints in sandbox), so CI is used as source of truth for the final run.
+
 ## Changed Files
 
 - `.woodpecker.yml`: wired E2E backend base URL for pre-deploy Playwright run.
@@ -49,3 +58,4 @@ The ticket requires frontend measurement of per-image view duration and persiste
 - `scroller-front-end-poc/tests/helpers/login.ts`: returns authenticated user object from login response for downstream DB assertions.
 - `scroller-front-end-poc/tests/helpers/scroller-customer-interactions-db.ts`: new Node-side direct API helper + polling wait for new interaction records.
 - `scroller-front-end-poc/tests/login.spec.ts`: extended login check to Like/Skip actions with persisted action/duration verification.
+- `scroller-front-end-poc/tests/login.spec.ts` (follow-up): narrowed scroller image locator to avoid Playwright strict-mode collisions with non-scroller image-role elements in CI.

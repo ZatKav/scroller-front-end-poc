@@ -4,7 +4,8 @@ import { getCustomerImageInteractions, waitForNewInteraction } from './helpers/s
 
 test('pre-deploy login check passes with valid credentials', async ({ page }) => {
   const user = await loginAndExpectAuthenticated(page);
-  await expect(page.getByRole('img')).toBeVisible();
+  const scrollerImage = page.locator('img[src^="data:image"]').first();
+  await expect(scrollerImage).toBeVisible();
 
   const existingInteractions = await getCustomerImageInteractions(user.id);
   const knownIds = new Set(existingInteractions.map((interaction) => interaction.id));
@@ -21,7 +22,7 @@ test('pre-deploy login check passes with valid credentials', async ({ page }) =>
   expect(likeInteraction.view_duration_ms).not.toBeNull();
   expect(Number.isInteger(likeInteraction.view_duration_ms)).toBeTruthy();
 
-  await expect(page.getByRole('img')).toBeVisible();
+  await expect(scrollerImage).toBeVisible();
   await page.getByRole('button', { name: 'Skip' }).click();
   const skipInteraction = await waitForNewInteraction({
     customerId: user.id,
