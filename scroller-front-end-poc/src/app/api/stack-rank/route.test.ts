@@ -115,6 +115,64 @@ describe('GET /api/stack-rank', () => {
         ...newImages,
       ]);
     });
+
+    it('serves a full requested window from the session cache without fetching upstream', async () => {
+      const existingImages = [
+        { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
+        { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
+        { id: 3, image_data: 'data:image/png;base64,CCC=', image_summary: 'C property' },
+        { id: 4, image_data: 'data:image/png;base64,DDD=', image_summary: 'D property' },
+      ];
+      mockVerifyToken.mockReturnValueOnce(MOCK_USER);
+      mockGetStackRank.mockReturnValueOnce(existingImages);
+
+      const response = await GET(makeRequest('valid-token', '?skip=1&limit=3'));
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body).toEqual({ ok: true, images: existingImages.slice(1, 4) });
+      expect(mockFetchStackRankImages).not.toHaveBeenCalled();
+      expect(mockSetStackRank).not.toHaveBeenCalled();
+    });
+
+    it('caches over-returned upstream images but only returns the requested window', async () => {
+      const upstreamImages = [
+        { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
+        { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
+        { id: 3, image_data: 'data:image/png;base64,CCC=', image_summary: 'C property' },
+      ];
+      mockVerifyToken.mockReturnValueOnce(MOCK_USER);
+      mockGetStackRank.mockReturnValueOnce([]);
+      mockFetchStackRankImages.mockResolvedValueOnce(upstreamImages);
+
+      const response = await GET(makeRequest('valid-token', '?skip=0&limit=1'));
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body).toEqual({ ok: true, images: [upstreamImages[0]] });
+      expect(mockSetStackRank).toHaveBeenCalledWith(MOCK_USER.id, upstreamImages);
+    });
+
+    it('returns a direct upstream window without poisoning the sequential session cache', async () => {
+      const existingImages = [
+        { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
+      ];
+      const upstreamImages = [
+        { id: 5, image_data: 'data:image/png;base64,EEE=', image_summary: 'E property' },
+        { id: 6, image_data: 'data:image/png;base64,FFF=', image_summary: 'F property' },
+      ];
+      mockVerifyToken.mockReturnValueOnce(MOCK_USER);
+      mockGetStackRank.mockReturnValueOnce(existingImages);
+      mockFetchStackRankImages.mockResolvedValueOnce(upstreamImages);
+
+      const response = await GET(makeRequest('valid-token', '?skip=4&limit=2'));
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body).toEqual({ ok: true, images: upstreamImages });
+      expect(mockFetchStackRankImages).toHaveBeenCalledWith({ skip: 4, limit: 2 });
+      expect(mockSetStackRank).not.toHaveBeenCalled();
+    });
   });
 
   describe('upstream failure', () => {

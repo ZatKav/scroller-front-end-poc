@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { StackRankImage } from '@/types/scroller-customer-interactions-db';
 import ImageScroller from '@/components/ImageScroller';
@@ -38,11 +38,17 @@ async function fetchStackRankWindow(skip: number, limit: number): Promise<StackR
   return data.images ?? [];
 }
 
+function windowKey(skip: number, limit: number): string {
+  return `${skip}:${limit}`;
+}
+
 export default function Home() {
   const { user } = useAuth();
   const [images, setImages] = useState<StackRankImage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [windowError, setWindowError] = useState<string | null>(null);
+  const imageCacheRef = useRef<StackRankImage[]>([]);
+  const loadedWindowKeysRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -51,17 +57,24 @@ export default function Home() {
     async function fetchImages() {
       try {
         for (const [index, window] of STACK_RANK_WINDOWS.entries()) {
+          const key = windowKey(window.skip, window.limit);
+          if (loadedWindowKeysRef.current.has(key)) {
+            continue;
+          }
+
           const windowImages = await fetchStackRankWindow(window.skip, window.limit);
           if (cancelled) {
             return;
           }
 
+          loadedWindowKeysRef.current.add(key);
+          imageCacheRef.current = appendUniqueImages(imageCacheRef.current, windowImages);
           if (index === 0) {
-            loadedFirstWindow = true;
-            setImages(windowImages);
+            loadedFirstWindow = imageCacheRef.current.length > 0;
           } else {
-            setImages((currentImages) => appendUniqueImages(currentImages ?? [], windowImages));
+            loadedFirstWindow = loadedFirstWindow || imageCacheRef.current.length > 0;
           }
+          setImages(imageCacheRef.current);
         }
       } catch {
         if (cancelled) {
