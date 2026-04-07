@@ -1,5 +1,12 @@
 import { expect, type Page } from '@playwright/test';
 
+export interface AuthenticatedE2EUser {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+}
+
 export function getLoginCredentials(): { username: string; password: string } {
   return {
     username: process.env.E2E_LOGIN_USERNAME ?? 'jack',
@@ -7,7 +14,21 @@ export function getLoginCredentials(): { username: string; password: string } {
   };
 }
 
-export async function loginAndExpectAuthenticated(page: Page): Promise<void> {
+function isAuthenticatedE2EUser(user: unknown): user is AuthenticatedE2EUser {
+  if (!user || typeof user !== 'object') {
+    return false;
+  }
+
+  const candidate = user as Partial<AuthenticatedE2EUser>;
+  return (
+    typeof candidate.id === 'number'
+    && typeof candidate.username === 'string'
+    && typeof candidate.email === 'string'
+    && typeof candidate.role === 'string'
+  );
+}
+
+export async function loginAndExpectAuthenticated(page: Page): Promise<AuthenticatedE2EUser> {
   const { username, password } = getLoginCredentials();
 
   await page.goto('/login');
@@ -25,7 +46,12 @@ export async function loginAndExpectAuthenticated(page: Page): Promise<void> {
 
   const loginResponse = await loginResponsePromise;
   expect(loginResponse.ok()).toBeTruthy();
+  const loginResponseBody: unknown = await loginResponse.json();
+  const user = (loginResponseBody as { user?: unknown }).user;
+  expect(isAuthenticatedE2EUser(user)).toBeTruthy();
 
   await page.waitForURL((url) => url.pathname !== '/login');
   expect(new URL(page.url()).pathname).not.toBe('/login');
+
+  return user as AuthenticatedE2EUser;
 }
