@@ -74,9 +74,6 @@ steps:
     environment:
       DOCKER_HOST: unix:///var/run/docker.sock
       CONTAINER_HOST: unix:///var/run/docker.sock
-    depends_on:
-      - test-unit
-      - test-e2e
     when:
       event: push
       branch: main
@@ -205,6 +202,10 @@ steps:
   - name: allure-report
     image: docker.io/andgineer/allure:2.36.0
     when:
+      event:
+        - pull_request
+        - push
+        - manual
       status: [ success, failure ]
     commands:
       - |
@@ -249,6 +250,10 @@ steps:
   - name: store-report-locally
     image: alpine:latest
     when:
+      event:
+        - pull_request
+        - push
+        - manual
       status: [ success, failure ]
     commands:
       - |
