@@ -10,6 +10,9 @@ const STACK_RANK_WINDOWS = [
   { skip: 1, limit: 3 },
   { skip: 4, limit: 10 },
 ];
+const REFILL_STAGE_LIMITS = [3, 7];
+const REFILL_THRESHOLD = 10;
+const INITIAL_NEXT_SKIP = STACK_RANK_WINDOWS.reduce((total, window) => total + window.limit, 0);
 
 function appendUniqueImages(
   existingImages: StackRankImage[],
@@ -49,14 +52,58 @@ export default function Home() {
   const [windowError, setWindowError] = useState<string | null>(null);
   const imageCacheRef = useRef<StackRankImage[]>([]);
   const loadedWindowKeysRef = useRef<Set<string>>(new Set());
+  const nextSkipRef = useRef(INITIAL_NEXT_SKIP);
+  const refillInFlightRef = useRef(false);
+  const mountedRef = useRef(false);
+
+  async function refillQueue() {
+    if (refillInFlightRef.current) {
+      return;
+    }
+
+    refillInFlightRef.current = true;
+    setWindowError(null);
+
+    try {
+      for (const limit of REFILL_STAGE_LIMITS) {
+        const skip = nextSkipRef.current;
+        const windowImages = await fetchStackRankWindow(skip, limit);
+        if (!mountedRef.current) {
+          return;
+        }
+
+        nextSkipRef.current += limit;
+        imageCacheRef.current = appendUniqueImages(imageCacheRef.current, windowImages);
+        setImages(imageCacheRef.current);
+      }
+    } catch {
+      if (!mountedRef.current) {
+        return;
+      }
+
+      setWindowError('More images could not be loaded.');
+    } finally {
+      refillInFlightRef.current = false;
+    }
+  }
+
+  function handleAdvance(nextIndex: number) {
+    const remainingImages = imageCacheRef.current.length - nextIndex;
+    if (remainingImages !== REFILL_THRESHOLD || refillInFlightRef.current) {
+      return;
+    }
+
+    void refillQueue();
+  }
 
   useEffect(() => {
+    mountedRef.current = true;
     let cancelled = false;
     let loadedFirstWindow = false;
 
     async function fetchImages() {
       try {
-        for (const [index, window] of STACK_RANK_WINDOWS.entries()) {
+        for (const window of STACK_RANK_WINDOWS) {
           const key = windowKey(window.skip, window.limit);
           if (loadedWindowKeysRef.current.has(key)) {
             continue;
@@ -69,11 +116,7 @@ export default function Home() {
 
           loadedWindowKeysRef.current.add(key);
           imageCacheRef.current = appendUniqueImages(imageCacheRef.current, windowImages);
-          if (index === 0) {
-            loadedFirstWindow = imageCacheRef.current.length > 0;
-          } else {
-            loadedFirstWindow = loadedFirstWindow || imageCacheRef.current.length > 0;
-          }
+          loadedFirstWindow = loadedFirstWindow || imageCacheRef.current.length > 0;
           setImages(imageCacheRef.current);
         }
       } catch {
@@ -94,6 +137,7 @@ export default function Home() {
 
     return () => {
       cancelled = true;
+      mountedRef.current = false;
     };
   }, []);
 
@@ -106,7 +150,7 @@ export default function Home() {
       )}
       {!error && images !== null && user && (
         <>
-          <ImageScroller images={images} customerId={user.id} />
+          <ImageScroller images={images} customerId={user.id} onAdvance={handleAdvance} />
           {windowError && <p className="text-sm text-red-600 mt-4">{windowError}</p>}
         </>
       )}
