@@ -49,13 +49,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const skip = readWindowNumber(request.nextUrl.searchParams, 'skip', 0, 0);
     const limit = readWindowNumber(request.nextUrl.searchParams, 'limit', 10, 1);
+    const existingImages = getStackRank(user.id) ?? [];
+    if (existingImages.length >= skip + limit) {
+      return NextResponse.json({ ok: true, images: existingImages.slice(skip, skip + limit) });
+    }
+
     const images = await fetchStackRankImages({ skip, limit });
     const filteredImages = images.filter((img) => img.image_data !== null);
-    const existingImages = skip === 0 ? [] : getStackRank(user.id) ?? [];
+    if (skip > existingImages.length) {
+      return NextResponse.json({ ok: true, images: filteredImages.slice(0, limit) });
+    }
+
     const mergedImages = appendUniqueImages(existingImages, filteredImages);
-    const newImages = mergedImages.slice(existingImages.length);
     setStackRank(user.id, mergedImages);
-    return NextResponse.json({ ok: true, images: newImages });
+    return NextResponse.json({ ok: true, images: mergedImages.slice(skip, skip + limit) });
   } catch (error) {
     if (error instanceof StackRankClientError) {
       console.error('Stack-rank upstream error:', error.message);
