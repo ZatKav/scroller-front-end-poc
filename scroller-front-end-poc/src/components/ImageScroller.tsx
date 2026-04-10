@@ -7,9 +7,10 @@ import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/sc
 interface ImageScrollerProps {
   images: StackRankImage[];
   customerId: number;
+  onAdvance?: (nextIndex: number) => void;
 }
 
-export default function ImageScroller({ images, customerId }: ImageScrollerProps) {
+export default function ImageScroller({ images, customerId, onAdvance }: ImageScrollerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageShownAtMs, setImageShownAtMs] = useState(() => Date.now());
   const [submitting, setSubmitting] = useState(false);
@@ -40,7 +41,11 @@ export default function ImageScroller({ images, customerId }: ImageScrollerProps
         action,
         view_duration_ms: viewDurationMs,
       });
-      setCurrentIndex((prev) => prev + 1);
+      setCurrentIndex((prev) => {
+        const nextIndex = prev + 1;
+        onAdvance?.(nextIndex);
+        return nextIndex;
+      });
     } catch (error) {
       console.error('Failed to record interaction:', error);
     } finally {

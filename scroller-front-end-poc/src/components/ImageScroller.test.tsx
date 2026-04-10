@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ImageScroller from './ImageScroller';
 
@@ -51,7 +51,9 @@ describe('ImageScroller', () => {
     const user = userEvent.setup();
     render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
 
-    await user.click(screen.getByRole('button', { name: 'Like' }));
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Like' }));
+    });
 
     expect(mockCreateInteraction).toHaveBeenCalledWith({
       customer_id: CUSTOMER_ID,
@@ -67,11 +69,28 @@ describe('ImageScroller', () => {
     });
   });
 
+  it('notifies the parent after a successful card advance', async () => {
+    const user = userEvent.setup();
+    const onAdvance = jest.fn();
+
+    render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} onAdvance={onAdvance} />);
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Like' }));
+    });
+
+    await waitFor(() => {
+      expect(onAdvance).toHaveBeenCalledWith(1);
+    });
+  });
+
   it('sends a skip interaction and advances to the next image', async () => {
     const user = userEvent.setup();
     render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
 
-    await user.click(screen.getByRole('button', { name: 'Skip' }));
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Skip' }));
+    });
 
     expect(mockCreateInteraction).toHaveBeenCalledWith({
       customer_id: CUSTOMER_ID,
@@ -91,12 +110,16 @@ describe('ImageScroller', () => {
     const user = userEvent.setup();
     render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
 
-    await user.click(screen.getByRole('button', { name: 'Like' }));
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Like' }));
+    });
     await waitFor(() => {
       expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/jpeg;base64,BBBB');
     });
 
-    await user.click(screen.getByRole('button', { name: 'Skip' }));
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Skip' }));
+    });
     await waitFor(() => {
       expect(screen.getByText('No more images')).toBeInTheDocument();
     });
@@ -109,7 +132,9 @@ describe('ImageScroller', () => {
     render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
 
     jest.setSystemTime(new Date('2026-04-06T10:00:01.500Z'));
-    await user.click(screen.getByRole('button', { name: 'Like' }));
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Like' }));
+    });
 
     expect(mockCreateInteraction).toHaveBeenNthCalledWith(1, {
       customer_id: CUSTOMER_ID,
@@ -123,7 +148,9 @@ describe('ImageScroller', () => {
     });
 
     jest.setSystemTime(new Date('2026-04-06T10:00:02.250Z'));
-    await user.click(screen.getByRole('button', { name: 'Skip' }));
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Skip' }));
+    });
 
     expect(mockCreateInteraction).toHaveBeenNthCalledWith(
       2,
@@ -155,12 +182,16 @@ describe('ImageScroller', () => {
     const user = userEvent.setup();
     render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
 
-    await user.click(screen.getByRole('button', { name: 'Like' }));
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Like' }));
+    });
 
     expect(screen.getByRole('button', { name: 'Like' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Skip' })).toBeDisabled();
 
-    resolveInteraction!();
+    await act(async () => {
+      resolveInteraction!();
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/jpeg;base64,BBBB');
@@ -170,11 +201,14 @@ describe('ImageScroller', () => {
   it('does not advance when the interaction POST fails', async () => {
     mockCreateInteraction.mockRejectedValueOnce(new Error('Network error'));
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    const onAdvance = jest.fn();
 
     const user = userEvent.setup();
-    render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+    render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} onAdvance={onAdvance} />);
 
-    await user.click(screen.getByRole('button', { name: 'Like' }));
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Like' }));
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Like' })).not.toBeDisabled();
@@ -182,6 +216,7 @@ describe('ImageScroller', () => {
 
     // Should still show the first image, not advance
     expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/jpeg;base64,AAAA');
+    expect(onAdvance).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
   });

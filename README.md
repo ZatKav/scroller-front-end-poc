@@ -61,11 +61,12 @@ The browser only calls internal Next.js API routes. API keys are injected server
 
 After login, the protected scroller page loads stack-rank images progressively through the internal
 `/api/stack-rank` route: first 1 image, then the next 3, then the next 10. The first image is rendered
-as soon as the first window returns, and later window failures leave the current image actionable while
-showing a short failure message. The page keeps a browser-side queue of fetched images, and the
-internal route keeps a server-side session cache keyed by user so repeated or over-returned windows can
-be served without another `scroller-customer-interactions-db` call when the requested ordinal range is
-already cached.
+as soon as the first window returns. Once the local queue falls to 10 remaining cards, the page starts
+a staged refill of the next 3 cards and then the next 7 while keeping the current card actionable; any
+refill failure leaves the buffered queue intact and shows a short failure message. The page keeps a
+browser-side queue of fetched images, and the internal route keeps a server-side session cache keyed by
+user so repeated or over-returned windows can be served without another
+`scroller-customer-interactions-db` call when the requested ordinal range is already cached.
 
 ## Testing
 
