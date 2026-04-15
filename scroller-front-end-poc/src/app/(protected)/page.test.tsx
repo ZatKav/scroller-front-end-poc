@@ -30,8 +30,10 @@ jest.mock('@/components/ImageScroller', () => ({
 
     let statusText = currentImage?.image_summary;
     if (!statusText) {
-      if (loadingMore || (!noMoreAvailable && !continuationErrored)) {
-        statusText = 'Loading more images...';
+      if (loadingMore || !noMoreAvailable) {
+        statusText = continuationErrored
+          ? 'More images could not be loaded.'
+          : 'Loading more images...';
       } else {
         statusText = 'No more images';
       }
@@ -209,8 +211,11 @@ describe('protected scroller page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Advance' }));
     await waitFor(() => {
-      expect(screen.getByTestId('current-image').textContent).toBe('No more images');
+      expect(screen.getByTestId('current-image').textContent).toBe(
+        'More images could not be loaded.',
+      );
     });
+    expect(screen.queryByText('No more images')).toBeNull();
   });
 
   it('deduplicates repeated continuation images by image id', async () => {

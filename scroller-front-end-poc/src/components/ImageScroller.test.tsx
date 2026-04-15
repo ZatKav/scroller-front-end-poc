@@ -59,7 +59,7 @@ describe('ImageScroller', () => {
     expect(screen.queryByText('No more images')).not.toBeInTheDocument();
   });
 
-  it('shows terminal empty state when continuation errors and no queued cards remain', async () => {
+  it('keeps continuation failures distinct from terminal empty state', async () => {
     const user = userEvent.setup();
     const { rerender } = render(
       <ImageScroller images={[IMAGES[0]]} customerId={CUSTOMER_ID} noMoreAvailable={false} />,
@@ -79,7 +79,8 @@ describe('ImageScroller', () => {
       />,
     );
 
-    expect(screen.getByText('No more images')).toBeInTheDocument();
+    expect(screen.getByText('More images could not be loaded.')).toBeInTheDocument();
+    expect(screen.queryByText('No more images')).not.toBeInTheDocument();
   });
 
   it('sends a like interaction and advances to the next image', async () => {

@@ -30,10 +30,14 @@ export default function ImageScroller({
   }, [currentIndex]);
 
   if (images.length === 0 || currentIndex >= images.length) {
-    if (loadingMore || (!noMoreAvailable && !continuationErrored)) {
+    if (loadingMore || !noMoreAvailable) {
+      const emptyStateText = continuationErrored
+        ? 'More images could not be loaded.'
+        : 'Loading more images...';
+
       return (
         <div className="text-center py-12">
-          <p className="text-lg text-gray-500">Loading more images...</p>
+          <p className="text-lg text-gray-500">{emptyStateText}</p>
         </div>
       );
     }
