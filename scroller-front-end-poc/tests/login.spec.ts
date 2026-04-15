@@ -2,6 +2,8 @@ import { expect, test, type Response } from '@playwright/test';
 import { loginAndExpectAuthenticated } from './helpers/login';
 import { getCustomerImageInteractions, waitForNewInteraction } from './helpers/scroller-customer-interactions-db';
 
+const RETIRED_JACK_PASSWORD = 'password123';
+
 function isStackRankWindowResponse(response: Response, skip: number, limit: number): boolean {
   const url = new URL(response.url());
   return (
@@ -11,6 +13,30 @@ function isStackRankWindowResponse(response: Response, skip: number, limit: numb
     && response.request().method() === 'GET'
   );
 }
+
+test('retired default jack password is rejected', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page).toHaveURL(/\/login(?:[/?#].*)?$/);
+
+  await page.getByLabel('Username').fill('jack');
+  await page.getByLabel('Password').fill(RETIRED_JACK_PASSWORD);
+
+  const loginResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname === '/api/auth/login' && response.request().method() === 'POST';
+  });
+
+  await page.getByRole('button', { name: /sign in/i }).click();
+
+  const loginResponse = await loginResponsePromise;
+  expect(loginResponse.status()).toBe(401);
+  await expect(page).toHaveURL(/\/login(?:[/?#].*)?$/);
+  await expect(page.getByText('Invalid username or password')).toBeVisible();
+
+  const authTokenCookie = (await page.context().cookies())
+    .find((cookie) => cookie.name === 'auth-token');
+  expect(authTokenCookie).toBeUndefined();
+});
 
 test('pre-deploy login check passes with valid credentials', async ({ page }) => {
   const firstWindowResponsePromise = page.waitForResponse(
