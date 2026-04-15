@@ -41,6 +41,12 @@ The protected scroller stopped after a finite startup sequence and could show `N
 
 - `npm test -- --runTestsByPath src/lib/stack-rank-client.test.ts src/app/api/stack-rank/route.test.ts src/components/ImageScroller.test.tsx 'src/app/(protected)/page.test.tsx'`
 
+### CI Follow-Up
+
+- CI failure evidence: `tests/login.spec.ts` timed out waiting for `/api/stack-rank?skip=0&limit=1` and `/api/stack-rank?skip=1&limit=3` responses.
+- Root cause: PRO-198 changed the protected page to customer-aware continuation (`limit=1`, then `limit=10`) and no longer emits legacy `skip` windows.
+- Fix: update the Playwright pre-deploy smoke test to wait for the current `limit=1` first-card response and `limit=10` continuation response.
+
 ## Changed Files
 
 - `scroller-front-end-poc/src/lib/stack-rank-client.ts`: added customer-aware query support (`customer_id` + `limit`, legacy fallback).
@@ -51,4 +57,5 @@ The protected scroller stopped after a finite startup sequence and could show `N
 - `scroller-front-end-poc/src/app/(protected)/page.test.tsx`: added continuation success, terminal empty, failure retention, dedupe, and first-image-latency coverage.
 - `scroller-front-end-poc/src/components/ImageScroller.tsx`: added loading-empty-state behavior while continuation is still expected.
 - `scroller-front-end-poc/src/components/ImageScroller.test.tsx`: added loading-vs-terminal empty-state coverage.
+- `scroller-front-end-poc/tests/login.spec.ts`: updated CI readiness waits for customer-aware continuation requests.
 - `README.md`: updated behavior docs for customer-aware continuation and terminal state semantics.

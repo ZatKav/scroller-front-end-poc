@@ -2,11 +2,10 @@ import { expect, test, type Response } from '@playwright/test';
 import { loginAndExpectAuthenticated } from './helpers/login';
 import { getCustomerImageInteractions, waitForNewInteraction } from './helpers/scroller-customer-interactions-db';
 
-function isStackRankWindowResponse(response: Response, skip: number, limit: number): boolean {
+function isStackRankResponse(response: Response, limit: number): boolean {
   const url = new URL(response.url());
   return (
     url.pathname === '/api/stack-rank'
-    && url.searchParams.get('skip') === String(skip)
     && url.searchParams.get('limit') === String(limit)
     && response.request().method() === 'GET'
   );
@@ -14,12 +13,12 @@ function isStackRankWindowResponse(response: Response, skip: number, limit: numb
 
 test('pre-deploy login check passes with valid credentials', async ({ page }) => {
   const firstWindowResponsePromise = page.waitForResponse(
-    (response) => isStackRankWindowResponse(response, 0, 1),
+    (response) => isStackRankResponse(response, 1),
     { timeout: 30000 },
   );
 
-  const nextWindowResponsePromise = page.waitForResponse(
-    (response) => isStackRankWindowResponse(response, 1, 3),
+  const continuationResponsePromise = page.waitForResponse(
+    (response) => isStackRankResponse(response, 10),
     { timeout: 30000 },
   );
 
@@ -34,15 +33,15 @@ test('pre-deploy login check passes with valid credentials', async ({ page }) =>
   expect(Array.isArray(firstWindowBody.images)).toBeTruthy();
   expect((firstWindowBody.images as unknown[]).length).toBeGreaterThanOrEqual(1);
 
-  const nextWindowResponse = await nextWindowResponsePromise;
+  const continuationResponse = await continuationResponsePromise;
   expect(
-    nextWindowResponse.ok(),
-    `Expected follow-up /api/stack-rank window to return 2xx, got ${nextWindowResponse.status()}.`,
+    continuationResponse.ok(),
+    `Expected follow-up /api/stack-rank continuation to return 2xx, got ${continuationResponse.status()}.`,
   ).toBeTruthy();
 
-  const nextWindowBody = await nextWindowResponse.json() as { images?: unknown };
-  expect(Array.isArray(nextWindowBody.images)).toBeTruthy();
-  expect((nextWindowBody.images as unknown[]).length).toBeGreaterThanOrEqual(1);
+  const continuationBody = await continuationResponse.json() as { images?: unknown };
+  expect(Array.isArray(continuationBody.images)).toBeTruthy();
+  expect((continuationBody.images as unknown[]).length).toBeGreaterThanOrEqual(1);
 
   const scrollerImage = page.getByTestId('scroller-image');
   await expect(scrollerImage).toBeVisible({ timeout: 15000 });
