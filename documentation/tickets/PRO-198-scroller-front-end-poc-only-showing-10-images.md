@@ -47,6 +47,12 @@ The protected scroller stopped after a finite startup sequence and could show `N
 - Root cause: PRO-198 changed the protected page to customer-aware continuation (`limit=1`, then `limit=10`) and no longer emits legacy `skip` windows.
 - Fix: update the Playwright pre-deploy smoke test to wait for the current `limit=1` first-card response and `limit=10` continuation response.
 
+### Second CI Follow-Up
+
+- CI failure evidence: the updated `tests/login.spec.ts` still timed out in `page.waitForResponse` even when the captured page snapshot showed the scroller image and Like/Skip controls were already visible.
+- Root cause: the smoke test coupled success to Playwright network-response observation rather than the user-visible scroller state and persisted Like/Skip behavior.
+- Fix: remove stack-rank response waits from the smoke test, extend the test budget to 60 seconds, and wait on visible scroller images before recording Like and Skip interactions.
+
 ## Changed Files
 
 - `scroller-front-end-poc/src/lib/stack-rank-client.ts`: added customer-aware query support (`customer_id` + `limit`, legacy fallback).
@@ -57,5 +63,5 @@ The protected scroller stopped after a finite startup sequence and could show `N
 - `scroller-front-end-poc/src/app/(protected)/page.test.tsx`: added continuation success, terminal empty, failure retention, dedupe, and first-image-latency coverage.
 - `scroller-front-end-poc/src/components/ImageScroller.tsx`: added loading-empty-state behavior while continuation is still expected.
 - `scroller-front-end-poc/src/components/ImageScroller.test.tsx`: added loading-vs-terminal empty-state coverage.
-- `scroller-front-end-poc/tests/login.spec.ts`: updated CI readiness waits for customer-aware continuation requests.
+- `scroller-front-end-poc/tests/login.spec.ts`: updated CI readiness waits for customer-aware continuation requests; then removed brittle stack-rank response waits in favor of visible scroller readiness and persisted Like/Skip verification.
 - `README.md`: updated behavior docs for customer-aware continuation and terminal state semantics.
