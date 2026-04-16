@@ -43,7 +43,7 @@ Required backend proxy variables:
 CI/deploy login checks also require:
 
 - `E2E_LOGIN_USERNAME` (defaults to `jack` in CI)
-- `E2E_LOGIN_PASSWORD` (defaults to `password123` in CI)
+- `E2E_LOGIN_PASSWORD` (defaults to `jackNgrok2026!` in CI)
 - `SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL` (for direct Playwright Node-side verification calls)
 - `SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY` (required by both Next proxy routes and direct Playwright verification calls)
 
@@ -112,8 +112,49 @@ For CI main deploy, `.woodpecker.yml` uses `make podman-deploy` with
 
 Default seeded login credentials for local/CI checks:
 
-- Username `jack` / Password `password123`
+- Username `jack` / Password `jackNgrok2026!`
 - Username `phil` / Password `manager123`
+
+The previous Jack default password (`password123`) is intentionally retired and should fail login.
+If you need to rotate Jack again before exposing a public endpoint, update:
+
+- `scroller-front-end-poc/data/users.json` (bcrypt hash)
+- `.woodpecker.yml` and any local `E2E_LOGIN_PASSWORD` overrides
+
+For ticket-driven branch handoff, rotate this value before branch push if a different owner-managed Jack password is required.
+
+## Public ngrok access for the scroller front end
+
+Run the app first so ngrok has a healthy local target:
+
+```bash
+make run
+```
+
+Start a public tunnel to port `8410`:
+
+```bash
+make scroller-ngrok-start
+```
+
+Get the active URL and status:
+
+```bash
+make scroller-ngrok-url
+make scroller-ngrok-status
+```
+
+Stop the public tunnel when done:
+
+```bash
+make scroller-ngrok-stop
+```
+
+Optional overrides:
+
+- `SCROLLER_NGROK_PORT` (defaults to `8410`)
+- `SCROLLER_NGROK_HEALTHCHECK_URL` (defaults to `http://localhost:$SCROLLER_NGROK_PORT/login`)
+- `SCROLLER_NGROK_API_URL` (defaults to `http://localhost:4040/api/tunnels`)
 
 ## CI report and log artifacts
 
