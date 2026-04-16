@@ -5,7 +5,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 SCROLLER_NGROK_PORT="${SCROLLER_NGROK_PORT:-8410}"
-SCROLLER_NGROK_API_URL="${SCROLLER_NGROK_API_URL:-http://localhost:4040/api/tunnels}"
+SCROLLER_NGROK_WEB_ADDR="${SCROLLER_NGROK_WEB_ADDR:-127.0.0.1:4041}"
+SCROLLER_NGROK_API_URL="${SCROLLER_NGROK_API_URL:-http://${SCROLLER_NGROK_WEB_ADDR}/api/tunnels}"
 SCROLLER_NGROK_LOG_FILE="${SCROLLER_NGROK_LOG_FILE:-/tmp/scroller-ngrok.log}"
 SCROLLER_NGROK_PID_FILE="${SCROLLER_NGROK_PID_FILE:-/tmp/scroller-ngrok.pid}"
 URL_SCRIPT="$REPO_ROOT/scripts/get_scroller_ngrok_url.sh"

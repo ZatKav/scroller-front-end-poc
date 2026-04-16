@@ -137,6 +137,15 @@ Start a public tunnel to port `8410`:
 make scroller-ngrok-start
 ```
 
+If Woodpecker already has an ngrok endpoint running, use a separate reserved scroller URL:
+
+```bash
+SCROLLER_NGROK_URL=https://<your-second-ngrok-url> make scroller-ngrok-start
+```
+
+The scroller helper uses ngrok's local agent API on `127.0.0.1:4041` by default so it can run alongside the Woodpecker tunnel on `4040`.
+Do not use `--pooling-enabled` for this case; that load-balances the same public URL instead of creating a separate front-end URL.
+
 Get the active URL and status:
 
 ```bash
@@ -154,7 +163,9 @@ Optional overrides:
 
 - `SCROLLER_NGROK_PORT` (defaults to `8410`)
 - `SCROLLER_NGROK_HEALTHCHECK_URL` (defaults to `http://localhost:$SCROLLER_NGROK_PORT/login`)
-- `SCROLLER_NGROK_API_URL` (defaults to `http://localhost:4040/api/tunnels`)
+- `SCROLLER_NGROK_WEB_ADDR` (defaults to `127.0.0.1:4041`)
+- `SCROLLER_NGROK_API_URL` (defaults to `http://$SCROLLER_NGROK_WEB_ADDR/api/tunnels`)
+- `SCROLLER_NGROK_URL` (optional reserved ngrok URL for a second public endpoint)
 
 ## CI report and log artifacts
 

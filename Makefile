@@ -25,22 +25,31 @@ test: test-dashboard-unit test-dashboard-e2e ## Run all tests
 
 SCROLLER_NGROK_PORT ?= 8410
 SCROLLER_NGROK_HEALTHCHECK_URL ?= http://localhost:$(SCROLLER_NGROK_PORT)/login
-SCROLLER_NGROK_API_URL ?= http://localhost:4040/api/tunnels
+SCROLLER_NGROK_WEB_ADDR ?= 127.0.0.1:4041
+SCROLLER_NGROK_API_URL ?= http://$(SCROLLER_NGROK_WEB_ADDR)/api/tunnels
+SCROLLER_NGROK_URL ?=
 SCROLLER_NGROK_LOG_FILE ?= /tmp/scroller-ngrok.log
 SCROLLER_NGROK_PID_FILE ?= /tmp/scroller-ngrok.pid
+SCROLLER_NGROK_DEFAULT_CONFIG ?= $(HOME)/Library/Application Support/ngrok/ngrok.yml
+SCROLLER_NGROK_AGENT_CONFIG_FILE ?= /tmp/scroller-ngrok-agent.yml
 
 .PHONY: scroller-ngrok-start
 scroller-ngrok-start: ## Start a public ngrok tunnel to the scroller front end
 	@SCROLLER_NGROK_PORT="$(SCROLLER_NGROK_PORT)" \
 	SCROLLER_NGROK_HEALTHCHECK_URL="$(SCROLLER_NGROK_HEALTHCHECK_URL)" \
+	SCROLLER_NGROK_WEB_ADDR="$(SCROLLER_NGROK_WEB_ADDR)" \
 	SCROLLER_NGROK_API_URL="$(SCROLLER_NGROK_API_URL)" \
+	SCROLLER_NGROK_URL="$(SCROLLER_NGROK_URL)" \
 	SCROLLER_NGROK_LOG_FILE="$(SCROLLER_NGROK_LOG_FILE)" \
 	SCROLLER_NGROK_PID_FILE="$(SCROLLER_NGROK_PID_FILE)" \
+	SCROLLER_NGROK_DEFAULT_CONFIG="$(SCROLLER_NGROK_DEFAULT_CONFIG)" \
+	SCROLLER_NGROK_AGENT_CONFIG_FILE="$(SCROLLER_NGROK_AGENT_CONFIG_FILE)" \
 	bash scripts/start_scroller_ngrok.sh
 
 .PHONY: scroller-ngrok-stop
 scroller-ngrok-stop: ## Stop the scroller ngrok tunnel
 	@SCROLLER_NGROK_PORT="$(SCROLLER_NGROK_PORT)" \
+	SCROLLER_NGROK_WEB_ADDR="$(SCROLLER_NGROK_WEB_ADDR)" \
 	SCROLLER_NGROK_API_URL="$(SCROLLER_NGROK_API_URL)" \
 	SCROLLER_NGROK_LOG_FILE="$(SCROLLER_NGROK_LOG_FILE)" \
 	SCROLLER_NGROK_PID_FILE="$(SCROLLER_NGROK_PID_FILE)" \
@@ -48,7 +57,7 @@ scroller-ngrok-stop: ## Stop the scroller ngrok tunnel
 
 .PHONY: scroller-ngrok-status
 scroller-ngrok-status: ## Show whether the scroller ngrok tunnel is active
-	@if SCROLLER_NGROK_PORT="$(SCROLLER_NGROK_PORT)" SCROLLER_NGROK_API_URL="$(SCROLLER_NGROK_API_URL)" bash scripts/get_scroller_ngrok_url.sh >/tmp/scroller-ngrok-url.out 2>/dev/null; then \
+	@if SCROLLER_NGROK_PORT="$(SCROLLER_NGROK_PORT)" SCROLLER_NGROK_WEB_ADDR="$(SCROLLER_NGROK_WEB_ADDR)" SCROLLER_NGROK_API_URL="$(SCROLLER_NGROK_API_URL)" bash scripts/get_scroller_ngrok_url.sh >/tmp/scroller-ngrok-url.out 2>/dev/null; then \
 		echo "scroller ngrok is active"; \
 		echo "Public URL: $$(cat /tmp/scroller-ngrok-url.out)"; \
 	else \
@@ -60,6 +69,7 @@ scroller-ngrok-status: ## Show whether the scroller ngrok tunnel is active
 .PHONY: scroller-ngrok-url
 scroller-ngrok-url: ## Print the active scroller ngrok URL
 	@SCROLLER_NGROK_PORT="$(SCROLLER_NGROK_PORT)" \
+	SCROLLER_NGROK_WEB_ADDR="$(SCROLLER_NGROK_WEB_ADDR)" \
 	SCROLLER_NGROK_API_URL="$(SCROLLER_NGROK_API_URL)" \
 	bash scripts/get_scroller_ngrok_url.sh
 
