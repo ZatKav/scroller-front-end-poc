@@ -12,18 +12,49 @@ URL_SCRIPT="$REPO_ROOT/scripts/get_scroller_ngrok_url.sh"
 
 STOPPED=0
 
+is_positive_pid() {
+  case "$1" in
+    ""|*[!0-9]*)
+      return 1
+      ;;
+    *)
+      [ "$1" -gt 0 ]
+      ;;
+  esac
+}
+
+pid_matches_scroller_ngrok() {
+  local pid="$1"
+  local command_line
+
+  is_positive_pid "$pid" || return 1
+  command_line="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+  [ -n "$command_line" ] || return 1
+
+  case "$command_line" in
+    *ngrok*" http "*"$SCROLLER_NGROK_PORT"*|*ngrok*" http localhost:$SCROLLER_NGROK_PORT"*|*ngrok*" http 127.0.0.1:$SCROLLER_NGROK_PORT"*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 if [ -f "$SCROLLER_NGROK_PID_FILE" ]; then
   NGROK_PID="$(cat "$SCROLLER_NGROK_PID_FILE" 2>/dev/null || true)"
-  if [ -n "$NGROK_PID" ] && kill -0 "$NGROK_PID" >/dev/null 2>&1; then
+  if pid_matches_scroller_ngrok "$NGROK_PID" && kill -0 "$NGROK_PID" >/dev/null 2>&1; then
     echo "Stopping scroller ngrok process $NGROK_PID..."
     kill "$NGROK_PID"
     STOPPED=1
+  elif [ -n "$NGROK_PID" ]; then
+    echo "Ignoring stale scroller ngrok PID file for PID $NGROK_PID."
   fi
   rm -f "$SCROLLER_NGROK_PID_FILE"
 fi
 
 if [ "$STOPPED" -eq 0 ]; then
-  MATCHING_PIDS="$(pgrep -f "ngrok http ${SCROLLER_NGROK_PORT}" || true)"
+  MATCHING_PIDS="$(pgrep -f "ngrok http ${SCROLLER_NGROK_PORT}" 2>/dev/null || true)"
   if [ -n "$MATCHING_PIDS" ]; then
     echo "Stopping ngrok process(es) on port $SCROLLER_NGROK_PORT..."
     echo "$MATCHING_PIDS" | xargs kill
