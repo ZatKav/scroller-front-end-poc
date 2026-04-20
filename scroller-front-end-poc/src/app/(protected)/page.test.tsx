@@ -13,20 +13,35 @@ jest.mock('@/components/ImageScroller', () => ({
     images,
     customerId,
     onAdvance,
+    loadingMore = false,
+    noMoreAvailable = true,
+    continuationErrored = false,
   }: {
     images: StackRankImage[];
     customerId: number;
     onAdvance?: (nextIndex: number) => void;
+    loadingMore?: boolean;
+    noMoreAvailable?: boolean;
+    continuationErrored?: boolean;
   }) => {
     const React = require('react');
     const [currentIndex, setCurrentIndex] = React.useState(0);
     const currentImage = images[currentIndex];
 
+    let statusText = currentImage?.image_summary;
+    if (!statusText) {
+      if (loadingMore || !noMoreAvailable) {
+        statusText = continuationErrored
+          ? 'More images could not be loaded.'
+          : 'Loading more images...';
+      } else {
+        statusText = 'No more images';
+      }
+    }
+
     return (
       <section data-testid="image-scroller" data-customer-id={customerId}>
-        <div data-testid="current-image">
-          {currentImage?.image_summary ?? 'No more images'}
-        </div>
+        <div data-testid="current-image">{statusText}</div>
         <button
           type="button"
           onClick={() => {
@@ -105,152 +120,120 @@ function advanceScroller(times: number) {
 }
 
 describe('protected scroller page', () => {
-  it('renders the first image before later stack-rank windows finish loading', async () => {
-    const nextThree = deferredResponse(makeImageRange(2, 3));
-    const nextTen = deferredResponse([makeImage(5)]);
+  it('renders the first image before the continuation preload resolves', async () => {
+    const preload = deferredResponse(makeImageRange(2, 3));
     mockFetch
       .mockResolvedValueOnce(responseWithImages([makeImage(1)]))
-      .mockReturnValueOnce(nextThree.promise)
-      .mockReturnValueOnce(nextTen.promise);
+      .mockReturnValueOnce(preload.promise);
 
     render(<Home />);
 
     expect(await screen.findByTestId('image-1')).toBeTruthy();
     expect(screen.queryByTestId('image-2')).toBeNull();
-    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId('current-image').textContent).toBe('Image 1');
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
 
     await act(async () => {
-      nextThree.resolve();
-      await nextThree.promise;
+      preload.resolve();
+      await preload.promise;
     });
+
     expect(await screen.findByTestId('image-2')).toBeTruthy();
-    expect(screen.getByTestId('image-4')).toBeTruthy();
-
-    await act(async () => {
-      nextTen.resolve();
-      await nextTen.promise;
-    });
-    expect(await screen.findByTestId('image-5')).toBeTruthy();
-
-    expect(mockFetch).toHaveBeenNthCalledWith(1, '/api/stack-rank?skip=0&limit=1');
-    expect(mockFetch).toHaveBeenNthCalledWith(2, '/api/stack-rank?skip=1&limit=3');
-    expect(mockFetch).toHaveBeenNthCalledWith(3, '/api/stack-rank?skip=4&limit=10');
+    expect(mockFetch).toHaveBeenNthCalledWith(1, '/api/stack-rank?limit=1');
+    expect(mockFetch).toHaveBeenNthCalledWith(2, '/api/stack-rank?limit=10');
   });
 
-  it('starts a staged refill at 10 remaining cards and keeps the current card actionable', async () => {
-    const refillThree = deferredResponse(makeImageRange(15, 3));
-    const refillSeven = deferredResponse(makeImageRange(18, 7));
+  it('loads additional unseen images when the customer consumes the queue without showing terminal empty state', async () => {
+    const continuation = deferredResponse([makeImage(3)]);
     mockFetch
       .mockResolvedValueOnce(responseWithImages([makeImage(1)]))
-      .mockResolvedValueOnce(responseWithImages(makeImageRange(2, 3)))
-      .mockResolvedValueOnce(responseWithImages(makeImageRange(5, 10)))
-      .mockReturnValueOnce(refillThree.promise)
-      .mockReturnValueOnce(refillSeven.promise);
+      .mockResolvedValueOnce(responseWithImages([makeImage(2)]))
+      .mockReturnValueOnce(continuation.promise);
 
     render(<Home />);
 
-    expect(await screen.findByTestId('image-14')).toBeTruthy();
-
-    advanceScroller(4);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('current-image').textContent).toBe('Image 5');
-      expect(mockFetch).toHaveBeenCalledTimes(4);
-    });
-    expect(mockFetch).toHaveBeenNthCalledWith(4, '/api/stack-rank?skip=14&limit=3');
+    expect(await screen.findByTestId('image-2')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Advance' }));
-    expect(screen.getByTestId('current-image').textContent).toBe('Image 6');
-    expect(mockFetch).toHaveBeenCalledTimes(4);
-
-    await act(async () => {
-      refillThree.resolve();
-      await refillThree.promise;
-    });
-
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(5);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
     });
-    expect(mockFetch).toHaveBeenNthCalledWith(5, '/api/stack-rank?skip=17&limit=7');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Advance' }));
+    expect(screen.getByTestId('current-image').textContent).toBe('Loading more images...');
+    expect(screen.queryByText('No more images')).toBeNull();
 
     await act(async () => {
-      refillSeven.resolve();
-      await refillSeven.promise;
+      continuation.resolve();
+      await continuation.promise;
     });
 
-    expect(await screen.findByTestId('image-24')).toBeTruthy();
+    expect(await screen.findByTestId('image-3')).toBeTruthy();
+    expect(screen.getByTestId('current-image').textContent).toBe('Image 3');
   });
 
-  it('deduplicates refill windows before appending them to the local queue', async () => {
+  it('shows terminal empty state when continuation returns no unseen images', async () => {
     mockFetch
       .mockResolvedValueOnce(responseWithImages([makeImage(1)]))
-      .mockResolvedValueOnce(responseWithImages(makeImageRange(2, 3)))
-      .mockResolvedValueOnce(responseWithImages(makeImageRange(5, 10)))
-      .mockResolvedValueOnce(responseWithImages([makeImage(14), makeImage(15), makeImage(16)]))
-      .mockResolvedValueOnce(
-        responseWithImages([
-          makeImage(16),
-          makeImage(17),
-          makeImage(18),
-          makeImage(19),
-          makeImage(20),
-          makeImage(21),
-          makeImage(22),
-        ]),
+      .mockResolvedValueOnce(responseWithImages([makeImage(2)]))
+      .mockResolvedValueOnce(responseWithImages([]));
+
+    render(<Home />);
+
+    expect(await screen.findByTestId('image-2')).toBeTruthy();
+
+    advanceScroller(2);
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('current-image').textContent).toBe('No more images');
+    });
+  });
+
+  it('keeps already loaded cards available when a continuation request fails', async () => {
+    mockFetch
+      .mockResolvedValueOnce(responseWithImages([makeImage(1)]))
+      .mockResolvedValueOnce(responseWithImages([makeImage(2), makeImage(3)]))
+      .mockResolvedValueOnce(failedResponse());
+
+    render(<Home />);
+
+    expect(await screen.findByTestId('image-3')).toBeTruthy();
+
+    advanceScroller(2);
+
+    expect(await screen.findByText('More images could not be loaded.')).toBeTruthy();
+    expect(screen.getByTestId('current-image').textContent).toBe('Image 3');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Advance' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('current-image').textContent).toBe(
+        'More images could not be loaded.',
       );
-
-    render(<Home />);
-
-    expect(await screen.findByTestId('image-14')).toBeTruthy();
-
-    advanceScroller(4);
-
-    expect(await screen.findByTestId('image-22')).toBeTruthy();
-    expect(screen.getAllByTestId('image-14')).toHaveLength(1);
-    expect(screen.getAllByTestId('image-16')).toHaveLength(1);
+    });
+    expect(screen.queryByText('No more images')).toBeNull();
   });
 
-  it('keeps the current queue available when a staged refill fails', async () => {
-    const refillThree = deferredResponse(makeImageRange(15, 3));
+  it('deduplicates repeated continuation images by image id', async () => {
     mockFetch
       .mockResolvedValueOnce(responseWithImages([makeImage(1)]))
-      .mockResolvedValueOnce(responseWithImages(makeImageRange(2, 3)))
-      .mockResolvedValueOnce(responseWithImages(makeImageRange(5, 10)))
-      .mockReturnValueOnce(refillThree.promise)
-      .mockResolvedValueOnce(failedResponse());
+      .mockResolvedValueOnce(responseWithImages([makeImage(2)]))
+      .mockResolvedValueOnce(responseWithImages([makeImage(2), makeImage(3)]));
 
     render(<Home />);
 
-    expect(await screen.findByTestId('image-14')).toBeTruthy();
-
-    advanceScroller(4);
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(4);
-    });
-
-    await act(async () => {
-      refillThree.resolve();
-      await refillThree.promise;
-    });
-
-    expect(await screen.findByTestId('image-17')).toBeTruthy();
-    expect(await screen.findByText('More images could not be loaded.')).toBeTruthy();
-    expect(screen.getByTestId('current-image').textContent).toBe('Image 5');
+    expect(await screen.findByTestId('image-2')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Advance' }));
-    expect(screen.getByTestId('current-image').textContent).toBe('Image 6');
-  });
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
 
-  it('keeps the first image visible and reports a later window failure', async () => {
-    mockFetch
-      .mockResolvedValueOnce(responseWithImages([makeImage(1)]))
-      .mockResolvedValueOnce(failedResponse());
-
-    render(<Home />);
-
-    expect(await screen.findByTestId('image-1')).toBeTruthy();
-    expect(await screen.findByText('More images could not be loaded.')).toBeTruthy();
-    expect(screen.getByTestId('image-1')).toBeTruthy();
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(await screen.findByTestId('image-3')).toBeTruthy();
+    expect(screen.getAllByTestId('image-2')).toHaveLength(1);
   });
 });

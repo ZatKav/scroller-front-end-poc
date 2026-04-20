@@ -47,6 +47,42 @@ describe('ImageScroller', () => {
     expect(screen.queryByRole('button', { name: 'Like' })).not.toBeInTheDocument();
   });
 
+  it('shows loading state when queue is exhausted but continuation is still expected', async () => {
+    const user = userEvent.setup();
+    render(<ImageScroller images={[IMAGES[0]]} customerId={CUSTOMER_ID} noMoreAvailable={false} />);
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Like' }));
+    });
+
+    expect(screen.getByText('Loading more images...')).toBeInTheDocument();
+    expect(screen.queryByText('No more images')).not.toBeInTheDocument();
+  });
+
+  it('keeps continuation failures distinct from terminal empty state', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <ImageScroller images={[IMAGES[0]]} customerId={CUSTOMER_ID} noMoreAvailable={false} />,
+    );
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Like' }));
+    });
+    expect(screen.getByText('Loading more images...')).toBeInTheDocument();
+
+    rerender(
+      <ImageScroller
+        images={[IMAGES[0]]}
+        customerId={CUSTOMER_ID}
+        noMoreAvailable={false}
+        continuationErrored
+      />,
+    );
+
+    expect(screen.getByText('More images could not be loaded.')).toBeInTheDocument();
+    expect(screen.queryByText('No more images')).not.toBeInTheDocument();
+  });
+
   it('sends a like interaction and advances to the next image', async () => {
     const user = userEvent.setup();
     render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);

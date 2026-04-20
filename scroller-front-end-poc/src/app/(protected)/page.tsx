@@ -5,14 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { StackRankImage } from '@/types/scroller-customer-interactions-db';
 import ImageScroller from '@/components/ImageScroller';
 
-const STACK_RANK_WINDOWS = [
-  { skip: 0, limit: 1 },
-  { skip: 1, limit: 3 },
-  { skip: 4, limit: 10 },
-];
-const REFILL_STAGE_LIMITS = [3, 7];
-const REFILL_THRESHOLD = 10;
-const INITIAL_NEXT_SKIP = STACK_RANK_WINDOWS.reduce((total, window) => total + window.limit, 0);
+const INITIAL_LOAD_LIMIT = 1;
+const CONTINUATION_LOAD_LIMIT = 10;
+const PREFETCH_THRESHOLD = 1;
 
 function appendUniqueImages(
   existingImages: StackRankImage[],
@@ -26,14 +21,11 @@ function appendUniqueImages(
     seenImageIds.add(image.id);
     return true;
   });
-  return [
-    ...existingImages,
-    ...newImages,
-  ];
+  return [...existingImages, ...newImages];
 }
 
-async function fetchStackRankWindow(skip: number, limit: number): Promise<StackRankImage[]> {
-  const response = await fetch(`/api/stack-rank?skip=${skip}&limit=${limit}`);
+async function fetchStackRankBatch(limit: number): Promise<StackRankImage[]> {
+  const response = await fetch(`/api/stack-rank?limit=${limit}`);
   if (!response.ok) {
     throw new Error('Failed to load images');
   }
@@ -41,102 +33,87 @@ async function fetchStackRankWindow(skip: number, limit: number): Promise<StackR
   return data.images ?? [];
 }
 
-function windowKey(skip: number, limit: number): string {
-  return `${skip}:${limit}`;
-}
-
 export default function Home() {
   const { user } = useAuth();
   const [images, setImages] = useState<StackRankImage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [windowError, setWindowError] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [noMoreImages, setNoMoreImages] = useState(false);
+
   const imageCacheRef = useRef<StackRankImage[]>([]);
-  const loadedWindowKeysRef = useRef<Set<string>>(new Set());
-  const nextSkipRef = useRef(INITIAL_NEXT_SKIP);
   const refillInFlightRef = useRef(false);
+  const noMoreImagesRef = useRef(false);
   const mountedRef = useRef(false);
 
-  async function refillQueue() {
-    if (refillInFlightRef.current) {
+  async function loadMoreImages(limit: number) {
+    if (refillInFlightRef.current || noMoreImagesRef.current) {
       return;
     }
 
     refillInFlightRef.current = true;
+    setLoadingMore(true);
     setWindowError(null);
 
     try {
-      for (const limit of REFILL_STAGE_LIMITS) {
-        const skip = nextSkipRef.current;
-        const windowImages = await fetchStackRankWindow(skip, limit);
-        if (!mountedRef.current) {
-          return;
-        }
+      const windowImages = await fetchStackRankBatch(limit);
+      if (!mountedRef.current) {
+        return;
+      }
 
-        nextSkipRef.current += limit;
-        imageCacheRef.current = appendUniqueImages(imageCacheRef.current, windowImages);
-        setImages(imageCacheRef.current);
+      const mergedImages = appendUniqueImages(imageCacheRef.current, windowImages);
+      const addedCount = mergedImages.length - imageCacheRef.current.length;
+
+      imageCacheRef.current = mergedImages;
+      setImages(mergedImages);
+
+      if (addedCount === 0) {
+        noMoreImagesRef.current = true;
+        setNoMoreImages(true);
       }
     } catch {
       if (!mountedRef.current) {
         return;
       }
 
-      setWindowError('More images could not be loaded.');
+      if (imageCacheRef.current.length > 0) {
+        setWindowError('More images could not be loaded.');
+        return;
+      }
+
+      setError('Failed to load images');
     } finally {
       refillInFlightRef.current = false;
+      if (mountedRef.current) {
+        setLoadingMore(false);
+      }
     }
   }
 
   function handleAdvance(nextIndex: number) {
     const remainingImages = imageCacheRef.current.length - nextIndex;
-    if (remainingImages !== REFILL_THRESHOLD || refillInFlightRef.current) {
+    if (windowError !== null || remainingImages > PREFETCH_THRESHOLD || noMoreImagesRef.current) {
       return;
     }
 
-    void refillQueue();
+    void loadMoreImages(CONTINUATION_LOAD_LIMIT);
   }
 
   useEffect(() => {
     mountedRef.current = true;
-    let cancelled = false;
-    let loadedFirstWindow = false;
 
-    async function fetchImages() {
-      try {
-        for (const window of STACK_RANK_WINDOWS) {
-          const key = windowKey(window.skip, window.limit);
-          if (loadedWindowKeysRef.current.has(key)) {
-            continue;
-          }
-
-          const windowImages = await fetchStackRankWindow(window.skip, window.limit);
-          if (cancelled) {
-            return;
-          }
-
-          loadedWindowKeysRef.current.add(key);
-          imageCacheRef.current = appendUniqueImages(imageCacheRef.current, windowImages);
-          loadedFirstWindow = loadedFirstWindow || imageCacheRef.current.length > 0;
-          setImages(imageCacheRef.current);
-        }
-      } catch {
-        if (cancelled) {
-          return;
-        }
-
-        if (loadedFirstWindow) {
-          setWindowError('More images could not be loaded.');
-          return;
-        }
-
-        setError('Failed to load images');
+    async function initializeQueue() {
+      await loadMoreImages(INITIAL_LOAD_LIMIT);
+      if (!mountedRef.current || noMoreImagesRef.current || imageCacheRef.current.length === 0) {
+        return;
       }
+
+      void loadMoreImages(CONTINUATION_LOAD_LIMIT);
     }
 
-    fetchImages();
+    void initializeQueue();
 
     return () => {
-      cancelled = true;
       mountedRef.current = false;
     };
   }, []);
@@ -150,7 +127,14 @@ export default function Home() {
       )}
       {!error && images !== null && user && (
         <>
-          <ImageScroller images={images} customerId={user.id} onAdvance={handleAdvance} />
+          <ImageScroller
+            images={images}
+            customerId={user.id}
+            onAdvance={handleAdvance}
+            loadingMore={loadingMore}
+            noMoreAvailable={noMoreImages}
+            continuationErrored={windowError !== null}
+          />
           {windowError && <p className="text-sm text-red-600 mt-4">{windowError}</p>}
         </>
       )}

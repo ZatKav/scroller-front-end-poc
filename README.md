@@ -59,14 +59,14 @@ The app now includes a dedicated TypeScript API client and server-side proxy rou
 
 The browser only calls internal Next.js API routes. API keys are injected server-side in the proxy handler.
 
-After login, the protected scroller page loads stack-rank images progressively through the internal
-`/api/stack-rank` route: first 1 image, then the next 3, then the next 10. The first image is rendered
-as soon as the first window returns. Once the local queue falls to 10 remaining cards, the page starts
-a staged refill of the next 3 cards and then the next 7 while keeping the current card actionable; any
-refill failure leaves the buffered queue intact and shows a short failure message. The page keeps a
-browser-side queue of fetched images, and the internal route keeps a server-side session cache keyed by
-user so repeated or over-returned windows can be served without another
-`scroller-customer-interactions-db` call when the requested ordinal range is already cached.
+After login, the protected scroller page loads stack-rank images through the internal
+`/api/stack-rank` route in customer-aware continuation mode. It requests one image first so the initial
+card renders quickly, then preloads larger continuation batches (`limit=10`) while the customer scrolls.
+When the queue is nearly exhausted, the page asks for the next unseen customer-specific cards and
+deduplicates by image id before appending. The internal route sends the authenticated user id upstream
+as `customer_id`, does not replay cached ordinal windows, and only shows terminal `No more images` once
+the upstream continuation returns no renderable unseen cards. Continuation failures keep already buffered
+cards intact and show `More images could not be loaded.`.
 
 ## Testing
 

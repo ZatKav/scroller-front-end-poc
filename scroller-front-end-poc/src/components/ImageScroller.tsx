@@ -8,9 +8,19 @@ interface ImageScrollerProps {
   images: StackRankImage[];
   customerId: number;
   onAdvance?: (nextIndex: number) => void;
+  loadingMore?: boolean;
+  noMoreAvailable?: boolean;
+  continuationErrored?: boolean;
 }
 
-export default function ImageScroller({ images, customerId, onAdvance }: ImageScrollerProps) {
+export default function ImageScroller({
+  images,
+  customerId,
+  onAdvance,
+  loadingMore = false,
+  noMoreAvailable = true,
+  continuationErrored = false,
+}: ImageScrollerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageShownAtMs, setImageShownAtMs] = useState(() => Date.now());
   const [submitting, setSubmitting] = useState(false);
@@ -20,6 +30,18 @@ export default function ImageScroller({ images, customerId, onAdvance }: ImageSc
   }, [currentIndex]);
 
   if (images.length === 0 || currentIndex >= images.length) {
+    if (loadingMore || !noMoreAvailable) {
+      const emptyStateText = continuationErrored
+        ? 'More images could not be loaded.'
+        : 'Loading more images...';
+
+      return (
+        <div className="text-center py-12">
+          <p className="text-lg text-gray-500">{emptyStateText}</p>
+        </div>
+      );
+    }
+
     return (
       <div className="text-center py-12">
         <p className="text-lg text-gray-500">No more images</p>
