@@ -10,7 +10,7 @@ export interface AuthenticatedE2EUser {
 export function getLoginCredentials(): { username: string; password: string } {
   return {
     username: process.env.E2E_LOGIN_USERNAME ?? 'jack',
-    password: process.env.E2E_LOGIN_PASSWORD ?? 'password123',
+    password: process.env.E2E_LOGIN_PASSWORD ?? 'jackNgrok2026!',
   };
 }
 
