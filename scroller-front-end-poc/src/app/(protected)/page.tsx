@@ -12,7 +12,6 @@ const STACK_RANK_WINDOWS = [
 ];
 const REFILL_STAGE_LIMITS = [3, 7];
 const REFILL_THRESHOLD = 10;
-const INITIAL_NEXT_SKIP = STACK_RANK_WINDOWS.reduce((total, window) => total + window.limit, 0);
 
 function appendUniqueImages(
   existingImages: StackRankImage[],
@@ -32,8 +31,20 @@ function appendUniqueImages(
   ];
 }
 
-async function fetchStackRankWindow(skip: number, limit: number): Promise<StackRankImage[]> {
-  const response = await fetch(`/api/stack-rank?skip=${skip}&limit=${limit}`);
+async function fetchStackRankWindow(
+  skip: number,
+  limit: number,
+  consumed = 0,
+): Promise<StackRankImage[]> {
+  const query = new URLSearchParams({
+    skip: String(skip),
+    limit: String(limit),
+  });
+  if (consumed > 0) {
+    query.set('consumed', String(consumed));
+  }
+
+  const response = await fetch(`/api/stack-rank?${query.toString()}`);
   if (!response.ok) {
     throw new Error('Failed to load images');
   }
@@ -51,8 +62,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [windowError, setWindowError] = useState<string | null>(null);
   const imageCacheRef = useRef<StackRankImage[]>([]);
+  const currentIndexRef = useRef(0);
   const loadedWindowKeysRef = useRef<Set<string>>(new Set());
-  const nextSkipRef = useRef(INITIAL_NEXT_SKIP);
   const refillInFlightRef = useRef(false);
   const mountedRef = useRef(false);
 
@@ -66,13 +77,12 @@ export default function Home() {
 
     try {
       for (const limit of REFILL_STAGE_LIMITS) {
-        const skip = nextSkipRef.current;
-        const windowImages = await fetchStackRankWindow(skip, limit);
+        const skip = imageCacheRef.current.length;
+        const windowImages = await fetchStackRankWindow(skip, limit, currentIndexRef.current);
         if (!mountedRef.current) {
           return;
         }
 
-        nextSkipRef.current += limit;
         imageCacheRef.current = appendUniqueImages(imageCacheRef.current, windowImages);
         setImages(imageCacheRef.current);
       }
@@ -88,8 +98,9 @@ export default function Home() {
   }
 
   function handleAdvance(nextIndex: number) {
+    currentIndexRef.current = nextIndex;
     const remainingImages = imageCacheRef.current.length - nextIndex;
-    if (remainingImages !== REFILL_THRESHOLD || refillInFlightRef.current) {
+    if (remainingImages > REFILL_THRESHOLD || refillInFlightRef.current) {
       return;
     }
 

@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 describe('fetchStackRankImages', () => {
-  it('requests the specified stack-rank window from the interactions API', async () => {
+  it('requests enough customer-owned stack-rank cards from the interactions API', async () => {
     const mockImages = [
       { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
     ];
@@ -35,10 +35,10 @@ describe('fetchStackRankImages', () => {
       json: () => Promise.resolve(mockImages),
     } as Response);
 
-    const result = await fetchStackRankImages({ skip: 1, limit: 3 });
+    const result = await fetchStackRankImages({ customerId: 42, skip: 1, limit: 3 });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://interactions.local/api/images/stack-rank?skip=1&limit=3',
+      'http://interactions.local/api/images/stack-rank?customer_id=42&limit=4',
       {
         headers: {
           'Content-Type': 'application/json',
@@ -48,5 +48,25 @@ describe('fetchStackRankImages', () => {
       },
     );
     expect(result).toEqual(mockImages);
+  });
+
+  it('discounts cards already consumed in the current frontend session', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([]),
+    } as Response);
+
+    await fetchStackRankImages({ customerId: 42, skip: 14, limit: 3, consumed: 4 });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://interactions.local/api/images/stack-rank?customer_id=42&limit=13',
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer test-api-key',
+        },
+        cache: 'no-store',
+      },
+    );
   });
 });

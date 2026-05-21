@@ -1,8 +1,10 @@
 import type { StackRankImage } from '@/types/scroller-customer-interactions-db';
 
 export interface StackRankWindowOptions {
+  customerId: number;
   skip?: number;
   limit?: number;
+  consumed?: number;
 }
 
 export class StackRankClientError extends Error {
@@ -16,15 +18,18 @@ export class StackRankClientError extends Error {
 }
 
 export async function fetchStackRankImages({
+  customerId,
   skip = 0,
   limit = 10,
-}: StackRankWindowOptions = {}): Promise<StackRankImage[]> {
+  consumed = 0,
+}: StackRankWindowOptions): Promise<StackRankImage[]> {
   const baseUrl =
     process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL ?? 'http://localhost:8400';
   const apiKey = process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY;
+  const upstreamOffset = Math.max(0, skip - consumed);
   const query = new URLSearchParams({
-    skip: String(skip),
-    limit: String(limit),
+    customer_id: String(customerId),
+    limit: String(upstreamOffset + limit),
   });
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };

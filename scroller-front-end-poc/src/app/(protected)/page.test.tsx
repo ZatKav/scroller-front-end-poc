@@ -157,7 +157,7 @@ describe('protected scroller page', () => {
       expect(screen.getByTestId('current-image').textContent).toBe('Image 5');
       expect(mockFetch).toHaveBeenCalledTimes(4);
     });
-    expect(mockFetch).toHaveBeenNthCalledWith(4, '/api/stack-rank?skip=14&limit=3');
+    expect(mockFetch).toHaveBeenNthCalledWith(4, '/api/stack-rank?skip=14&limit=3&consumed=4');
 
     fireEvent.click(screen.getByRole('button', { name: 'Advance' }));
     expect(screen.getByTestId('current-image').textContent).toBe('Image 6');
@@ -171,7 +171,7 @@ describe('protected scroller page', () => {
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledTimes(5);
     });
-    expect(mockFetch).toHaveBeenNthCalledWith(5, '/api/stack-rank?skip=17&limit=7');
+    expect(mockFetch).toHaveBeenNthCalledWith(5, '/api/stack-rank?skip=17&limit=7&consumed=5');
 
     await act(async () => {
       refillSeven.resolve();
@@ -208,6 +208,24 @@ describe('protected scroller page', () => {
     expect(await screen.findByTestId('image-22')).toBeTruthy();
     expect(screen.getAllByTestId('image-14')).toHaveLength(1);
     expect(screen.getAllByTestId('image-16')).toHaveLength(1);
+  });
+
+  it('starts a refill when the initial loaded queue is already below the threshold', async () => {
+    mockFetch
+      .mockResolvedValueOnce(responseWithImages([makeImage(1)]))
+      .mockResolvedValueOnce(responseWithImages(makeImageRange(2, 3)))
+      .mockResolvedValueOnce(responseWithImages([makeImage(5)]))
+      .mockResolvedValueOnce(responseWithImages(makeImageRange(6, 3)));
+
+    render(<Home />);
+
+    expect(await screen.findByTestId('image-5')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Advance' }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenNthCalledWith(4, '/api/stack-rank?skip=5&limit=3&consumed=1');
+    });
   });
 
   it('keeps the current queue available when a staged refill fails', async () => {

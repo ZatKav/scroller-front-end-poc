@@ -15,20 +15,12 @@ jest.mock('@/lib/stack-rank-client', () => {
   };
 });
 
-jest.mock('@/lib/stack-rank-session', () => ({
-  setStackRank: jest.fn(),
-  getStackRank: jest.fn(),
-}));
-
 import { verifyToken } from '@/lib/auth';
 import { fetchStackRankImages, StackRankClientError } from '@/lib/stack-rank-client';
-import { getStackRank, setStackRank } from '@/lib/stack-rank-session';
 import { GET } from './route';
 
 const mockVerifyToken = verifyToken as jest.Mock;
 const mockFetchStackRankImages = fetchStackRankImages as jest.Mock;
-const mockGetStackRank = getStackRank as jest.Mock;
-const mockSetStackRank = setStackRank as jest.Mock;
 
 const MOCK_USER = { id: 1, username: 'testuser', email: 'test@example.com', role: 'user' };
 
@@ -43,8 +35,6 @@ function makeRequest(token?: string, query = ''): NextRequest {
 beforeEach(() => {
   mockVerifyToken.mockReset();
   mockFetchStackRankImages.mockReset();
-  mockGetStackRank.mockReset();
-  mockSetStackRank.mockReset();
 });
 
 describe('GET /api/stack-rank', () => {
@@ -66,7 +56,7 @@ describe('GET /api/stack-rank', () => {
   });
 
   describe('success', () => {
-    it('fetches stack-rank images, filters null image_data, stores in session, and returns images', async () => {
+    it('fetches stack-rank images, filters null image_data, and returns images', async () => {
       const mockImages = [
         { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
         { id: 2, image_data: null, image_summary: null },
@@ -82,67 +72,50 @@ describe('GET /api/stack-rank', () => {
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body).toEqual({ ok: true, images: expectedFiltered });
-      expect(mockFetchStackRankImages).toHaveBeenCalledWith({ skip: 0, limit: 10 });
-      expect(mockSetStackRank).toHaveBeenCalledWith(MOCK_USER.id, expectedFiltered);
+      expect(mockFetchStackRankImages).toHaveBeenCalledWith({
+        customerId: MOCK_USER.id,
+        skip: 0,
+        limit: 10,
+        consumed: 0,
+      });
     });
 
-    it('fetches the requested window and appends unique images to the session', async () => {
-      const existingImages = [
+    it('fetches and slices the requested customer-owned window', async () => {
+      const upstreamImages = [
         { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
-      ];
-      const windowImages = [
         { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
-        { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
         { id: 3, image_data: null, image_summary: 'C property' },
         { id: 4, image_data: 'data:image/png;base64,DDD=', image_summary: null },
       ];
-      const newImages = [
-        { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
-        { id: 4, image_data: 'data:image/png;base64,DDD=', image_summary: null },
-      ];
       mockVerifyToken.mockReturnValueOnce(MOCK_USER);
-      mockGetStackRank.mockReturnValueOnce(existingImages);
-      mockFetchStackRankImages.mockResolvedValueOnce(windowImages);
+      mockFetchStackRankImages.mockResolvedValueOnce(upstreamImages);
 
       const response = await GET(makeRequest('valid-token', '?skip=1&limit=3'));
 
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body).toEqual({ ok: true, images: newImages });
-      expect(mockFetchStackRankImages).toHaveBeenCalledWith({ skip: 1, limit: 3 });
-      expect(mockSetStackRank).toHaveBeenCalledWith(MOCK_USER.id, [
-        ...existingImages,
-        ...newImages,
-      ]);
+      expect(body).toEqual({
+        ok: true,
+        images: [
+          { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
+          { id: 4, image_data: 'data:image/png;base64,DDD=', image_summary: null },
+        ],
+      });
+      expect(mockFetchStackRankImages).toHaveBeenCalledWith({
+        customerId: MOCK_USER.id,
+        skip: 1,
+        limit: 3,
+        consumed: 0,
+      });
     });
 
-    it('serves a full requested window from the session cache without fetching upstream', async () => {
-      const existingImages = [
-        { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
-        { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
-        { id: 3, image_data: 'data:image/png;base64,CCC=', image_summary: 'C property' },
-        { id: 4, image_data: 'data:image/png;base64,DDD=', image_summary: 'D property' },
-      ];
-      mockVerifyToken.mockReturnValueOnce(MOCK_USER);
-      mockGetStackRank.mockReturnValueOnce(existingImages);
-
-      const response = await GET(makeRequest('valid-token', '?skip=1&limit=3'));
-
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body).toEqual({ ok: true, images: existingImages.slice(1, 4) });
-      expect(mockFetchStackRankImages).not.toHaveBeenCalled();
-      expect(mockSetStackRank).not.toHaveBeenCalled();
-    });
-
-    it('caches over-returned upstream images but only returns the requested window', async () => {
+    it('only returns the requested window from an over-fetched upstream prefix', async () => {
       const upstreamImages = [
         { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
         { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
         { id: 3, image_data: 'data:image/png;base64,CCC=', image_summary: 'C property' },
       ];
       mockVerifyToken.mockReturnValueOnce(MOCK_USER);
-      mockGetStackRank.mockReturnValueOnce([]);
       mockFetchStackRankImages.mockResolvedValueOnce(upstreamImages);
 
       const response = await GET(makeRequest('valid-token', '?skip=0&limit=1'));
@@ -150,33 +123,35 @@ describe('GET /api/stack-rank', () => {
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body).toEqual({ ok: true, images: [upstreamImages[0]] });
-      expect(mockSetStackRank).toHaveBeenCalledWith(MOCK_USER.id, upstreamImages);
     });
 
-    it('returns a direct upstream window without poisoning the sequential session cache', async () => {
-      const existingImages = [
-        { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
-      ];
+    it('uses consumed count to slice only the new refill window', async () => {
       const upstreamImages = [
+        { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
+        { id: 3, image_data: 'data:image/png;base64,CCC=', image_summary: 'C property' },
+        { id: 4, image_data: 'data:image/png;base64,DDD=', image_summary: 'D property' },
         { id: 5, image_data: 'data:image/png;base64,EEE=', image_summary: 'E property' },
         { id: 6, image_data: 'data:image/png;base64,FFF=', image_summary: 'F property' },
       ];
       mockVerifyToken.mockReturnValueOnce(MOCK_USER);
-      mockGetStackRank.mockReturnValueOnce(existingImages);
       mockFetchStackRankImages.mockResolvedValueOnce(upstreamImages);
 
-      const response = await GET(makeRequest('valid-token', '?skip=4&limit=2'));
+      const response = await GET(makeRequest('valid-token', '?skip=4&limit=2&consumed=1'));
 
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body).toEqual({ ok: true, images: upstreamImages });
-      expect(mockFetchStackRankImages).toHaveBeenCalledWith({ skip: 4, limit: 2 });
-      expect(mockSetStackRank).not.toHaveBeenCalled();
+      expect(body).toEqual({ ok: true, images: upstreamImages.slice(3, 5) });
+      expect(mockFetchStackRankImages).toHaveBeenCalledWith({
+        customerId: MOCK_USER.id,
+        skip: 4,
+        limit: 2,
+        consumed: 1,
+      });
     });
   });
 
   describe('upstream failure', () => {
-    it('returns 502 and does not update session when upstream returns an error', async () => {
+    it('returns 502 when upstream returns an error', async () => {
       mockVerifyToken.mockReturnValueOnce(MOCK_USER);
       mockFetchStackRankImages.mockRejectedValueOnce(
         new StackRankClientError('Stack-rank upstream returned 502', 502),
@@ -189,10 +164,9 @@ describe('GET /api/stack-rank', () => {
       expect(body).toEqual({
         error: 'Stack-rank data could not be retrieved from the upstream service.',
       });
-      expect(mockSetStackRank).not.toHaveBeenCalled();
     });
 
-    it('returns 502 and does not update session when there is a network error', async () => {
+    it('returns 502 when there is a network error', async () => {
       mockVerifyToken.mockReturnValueOnce(MOCK_USER);
       mockFetchStackRankImages.mockRejectedValueOnce(
         new StackRankClientError('Network error fetching stack-rank: connection refused', 0),
@@ -201,7 +175,6 @@ describe('GET /api/stack-rank', () => {
       const response = await GET(makeRequest('valid-token'));
 
       expect(response.status).toBe(502);
-      expect(mockSetStackRank).not.toHaveBeenCalled();
     });
   });
 });
