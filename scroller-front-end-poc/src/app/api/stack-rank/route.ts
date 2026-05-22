@@ -30,18 +30,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const skip = readWindowNumber(request.nextUrl.searchParams, 'skip', 0, 0);
     const limit = readWindowNumber(request.nextUrl.searchParams, 'limit', 10, 1);
-    const consumed = readWindowNumber(request.nextUrl.searchParams, 'consumed', 0, 0);
-    const upstreamOffset = Math.max(0, skip - consumed);
-
-    const images = await fetchStackRankImages({ customerId: user.id, skip, limit, consumed });
+    const images = await fetchStackRankImages({ customerId: user.id, limit });
     const filteredImages = images.filter((img) => img.image_data !== null);
-
-    return NextResponse.json({
-      ok: true,
-      images: filteredImages.slice(upstreamOffset, upstreamOffset + limit),
-    });
+    return NextResponse.json({ ok: true, images: filteredImages });
   } catch (error) {
     if (error instanceof StackRankClientError) {
       console.error('Stack-rank upstream error:', error.message);

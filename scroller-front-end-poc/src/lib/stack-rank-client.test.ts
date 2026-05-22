@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 describe('fetchStackRankImages', () => {
-  it('requests enough customer-owned stack-rank cards from the interactions API', async () => {
+  it('requests the customer-aware stack-rank continuation window from the interactions API', async () => {
     const mockImages = [
       { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
     ];
@@ -35,10 +35,10 @@ describe('fetchStackRankImages', () => {
       json: () => Promise.resolve(mockImages),
     } as Response);
 
-    const result = await fetchStackRankImages({ customerId: 42, skip: 1, limit: 3 });
+    const result = await fetchStackRankImages({ customerId: 42, limit: 3 });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://interactions.local/api/images/stack-rank?customer_id=42&limit=4',
+      'http://interactions.local/api/images/stack-rank?limit=3&customer_id=42',
       {
         headers: {
           'Content-Type': 'application/json',
@@ -50,23 +50,20 @@ describe('fetchStackRankImages', () => {
     expect(result).toEqual(mockImages);
   });
 
-  it('discounts cards already consumed in the current frontend session', async () => {
+  it('falls back to legacy skip/limit windows when no customer id is provided', async () => {
+    const mockImages = [
+      { id: 7, image_data: 'data:image/png;base64,GGG=', image_summary: 'G property' },
+    ];
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve([]),
+      json: () => Promise.resolve(mockImages),
     } as Response);
 
-    await fetchStackRankImages({ customerId: 42, skip: 14, limit: 3, consumed: 4 });
+    await fetchStackRankImages({ skip: 4, limit: 2 });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://interactions.local/api/images/stack-rank?customer_id=42&limit=13',
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer test-api-key',
-        },
-        cache: 'no-store',
-      },
+      'http://interactions.local/api/images/stack-rank?limit=2&skip=4',
+      expect.any(Object),
     );
   });
 });
