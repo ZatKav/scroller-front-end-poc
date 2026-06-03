@@ -24,6 +24,8 @@ export default function ImageScroller({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageShownAtMs, setImageShownAtMs] = useState(() => Date.now());
   const [submitting, setSubmitting] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetMessage, setResetMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     setImageShownAtMs(Date.now());
@@ -75,6 +77,35 @@ export default function ImageScroller({
     }
   }
 
+  async function handleReset() {
+    const confirmed = window.confirm(
+      'Reset all of your image interactions? This permanently deletes them and cannot be undone.',
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setResetting(true);
+    setResetMessage(null);
+    try {
+      const { deleted } = await scrollerCustomerInteractionsDbApiClient.deleteCustomerImageInteractions(
+        customerId,
+      );
+      setResetMessage({
+        kind: 'success',
+        text:
+          deleted === 0
+            ? 'You had no interactions to reset.'
+            : `Reset complete — removed ${deleted} interaction${deleted === 1 ? '' : 's'}.`,
+      });
+    } catch (error) {
+      console.error('Failed to reset interactions:', error);
+      setResetMessage({ kind: 'error', text: 'Could not reset your interactions. Please try again.' });
+    } finally {
+      setResetting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col items-center gap-6">
       <img
@@ -102,6 +133,21 @@ export default function ImageScroller({
           Like
         </button>
       </div>
+      <button
+        onClick={handleReset}
+        disabled={resetting}
+        className="px-6 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        {resetting ? 'Resetting…' : 'Reset my interactions'}
+      </button>
+      {resetMessage && (
+        <p
+          role="status"
+          className={`text-sm ${resetMessage.kind === 'error' ? 'text-red-600' : 'text-gray-600'}`}
+        >
+          {resetMessage.text}
+        </p>
+      )}
     </div>
   );
 }

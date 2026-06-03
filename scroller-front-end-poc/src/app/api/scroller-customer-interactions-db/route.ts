@@ -69,6 +69,42 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 }
 
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
+  if (!SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY) {
+    return getMissingApiKeyResponse();
+  }
+
+  const path = getPathFromRequest(request);
+  if (!path) {
+    return getInvalidPathResponse();
+  }
+
+  try {
+    const response = await fetch(`${SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL}/api${path}`, {
+      method: 'DELETE',
+      headers: getProxyHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return NextResponse.json(
+        { error: `Scroller customer interactions DB API error: ${errorText}` },
+        { status: response.status },
+      );
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Error calling scroller customer interactions DB API:', error);
+    return NextResponse.json(
+      { error: 'Failed to connect to scroller customer interactions DB API' },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY) {
     return getMissingApiKeyResponse();

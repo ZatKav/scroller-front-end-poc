@@ -104,6 +104,12 @@ export const scrollerCustomerInteractionsDbApiClient = {
     });
   },
 
+  async deleteCustomerImageInteractions(customerId: number): Promise<{ deleted: number }> {
+    return request<{ deleted: number }>(`/customer-image-interactions/${customerId}`, {
+      method: 'DELETE',
+    });
+  },
+
   async getStackRankImages(skip: number = 0, limit: number = 10): Promise<StackRankImage[]> {
     const queryParams = new URLSearchParams({
       skip: String(skip),

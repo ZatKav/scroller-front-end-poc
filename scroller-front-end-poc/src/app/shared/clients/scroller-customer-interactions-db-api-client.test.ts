@@ -120,6 +120,44 @@ describe('scrollerCustomerInteractionsDbApiClient', () => {
     });
   });
 
+  describe('deleteCustomerImageInteractions', () => {
+    it('sends a DELETE for the customer and returns the deleted count', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ deleted: 3 }),
+      } as Response);
+
+      const result = await scrollerCustomerInteractionsDbApiClient.deleteCustomerImageInteractions(100);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/scroller-customer-interactions-db?path=%2Fcustomer-image-interactions%2F100',
+        expect.objectContaining({
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      expect(result).toEqual({ deleted: 3 });
+    });
+
+    it('throws APIError when the delete fails', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: () => Promise.resolve('Internal Server Error'),
+      } as Response);
+
+      let error: unknown;
+      try {
+        await scrollerCustomerInteractionsDbApiClient.deleteCustomerImageInteractions(100);
+      } catch (caughtError) {
+        error = caughtError;
+      }
+
+      expect(error).toBeInstanceOf(APIError);
+      expect((error as APIError).status).toBe(500);
+    });
+  });
+
   describe('getStackRankImages', () => {
     it('fetches stack-rank image cards', async () => {
       const mockResponse = [{ id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'Summary' }];
