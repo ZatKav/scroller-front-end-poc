@@ -1,5 +1,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
+ARG NEXT_PUBLIC_BASE_PATH=""
+ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
 
 # Install dependencies and build the Next.js app
 COPY package*.json ./
@@ -10,8 +12,10 @@ RUN npm run build
 # Runtime image: only production deps and build output
 FROM node:20-alpine AS runner
 WORKDIR /app
+ARG NEXT_PUBLIC_BASE_PATH=""
 ENV NODE_ENV=production \
-    PORT=8410
+    PORT=8410 \
+    NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
 RUN apk add --no-cache curl
 
 COPY package*.json ./

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { StackRankImage } from '@/types/scroller-customer-interactions-db';
 import ImageScroller from '@/components/ImageScroller';
+import { appPath } from '@/lib/base-path';
 
 const INITIAL_LOAD_LIMIT = 1;
 const CONTINUATION_LOAD_LIMIT = 10;
@@ -25,7 +26,7 @@ function appendUniqueImages(
 }
 
 async function fetchStackRankBatch(limit: number): Promise<StackRankImage[]> {
-  const response = await fetch(`/api/stack-rank?limit=${limit}`);
+  const response = await fetch(appPath(`/api/stack-rank?limit=${limit}`));
   if (!response.ok) {
     throw new Error('Failed to load images');
   }

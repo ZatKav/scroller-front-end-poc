@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
+import { authCookiePath } from '@/lib/base-path';
 import { clearStackRank } from '@/lib/stack-rank-session';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     maxAge: 0,
-    path: '/',
+    path: authCookiePath(),
   });
 
   return response;

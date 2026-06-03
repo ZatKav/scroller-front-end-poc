@@ -24,7 +24,7 @@ test: test-dashboard-unit test-dashboard-e2e ## Run all tests
 # --- Scroller ngrok targets ---
 
 SCROLLER_NGROK_PORT ?= 8410
-SCROLLER_NGROK_HEALTHCHECK_URL ?= http://localhost:$(SCROLLER_NGROK_PORT)/login
+SCROLLER_NGROK_HEALTHCHECK_URL ?= http://localhost:$(SCROLLER_NGROK_PORT)/scroller/login
 SCROLLER_NGROK_WEB_ADDR ?= 127.0.0.1:4041
 SCROLLER_NGROK_API_URL ?= http://$(SCROLLER_NGROK_WEB_ADDR)/api/tunnels
 SCROLLER_NGROK_URL ?=
@@ -79,15 +79,16 @@ PODMAN_IMG ?= localhost/scroller-front-end-poc:latest
 PODMAN_CONT ?= scroller-front-end-poc-local
 PODMAN_PORT ?= 8410
 PODMAN_ENV_FILE ?=
+NEXT_PUBLIC_BASE_PATH ?= /scroller
 REGISTRY_IMAGE ?= host.containers.internal:5000/scroller-front-end-poc:latest
 PODMAN_KUBE_MANIFEST ?= podman-scroller-kube.yaml
-PODMAN_HEALTHCHECK_URL ?= http://localhost:8410
+PODMAN_HEALTHCHECK_URL ?= http://localhost:8410/scroller/login
 PODMAN_POD_NAME ?= pod_scroller_front_end
 
 .PHONY: podman-build
 podman-build: ## Build the scroller Podman image
 	@echo "Building image $(PODMAN_IMG)..."
-	podman build -t $(PODMAN_IMG) -f scroller-front-end-poc/Containerfile scroller-front-end-poc
+	podman build --build-arg NEXT_PUBLIC_BASE_PATH="$(NEXT_PUBLIC_BASE_PATH)" -t $(PODMAN_IMG) -f scroller-front-end-poc/Containerfile scroller-front-end-poc
 
 .PHONY: podman-start
 podman-start: ## Legacy alias for the supported pod deployment flow

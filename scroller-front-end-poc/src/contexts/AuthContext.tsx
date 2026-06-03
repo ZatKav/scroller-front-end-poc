@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User } from '@/lib/auth';
+import { appPath } from '@/lib/base-path';
 
 interface AuthContextType {
   user: User | null;
@@ -39,7 +40,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     try {
       const response = await Promise.race([
-        fetch('/api/auth/me'),
+        fetch(appPath('/api/auth/me')),
         timeoutPromise,
       ]) as Response;
 
@@ -59,7 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(appPath('/api/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -84,14 +85,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
+      await fetch(appPath('/api/auth/logout'), {
         method: 'POST',
       });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       setUser(null);
-      window.location.href = '/login';
+      window.location.href = appPath('/login');
     }
   };
 
