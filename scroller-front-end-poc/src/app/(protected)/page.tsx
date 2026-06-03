@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import type { StackRankImage } from '@/types/scroller-customer-interactions-db';
+import type {
+  StackRankImage,
+  StackRankProfileWeights,
+} from '@/types/scroller-customer-interactions-db';
 import ImageScroller from '@/components/ImageScroller';
 import { appPath } from '@/lib/base-path';
 
@@ -25,13 +28,24 @@ function appendUniqueImages(
   return [...existingImages, ...newImages];
 }
 
-async function fetchStackRankBatch(limit: number): Promise<StackRankImage[]> {
+interface StackRankBatch {
+  images: StackRankImage[];
+  profileWeights: StackRankProfileWeights;
+}
+
+async function fetchStackRankBatch(limit: number): Promise<StackRankBatch> {
   const response = await fetch(appPath(`/api/stack-rank?limit=${limit}`));
   if (!response.ok) {
     throw new Error('Failed to load images');
   }
-  const data = (await response.json()) as { images?: StackRankImage[] };
-  return data.images ?? [];
+  const data = (await response.json()) as {
+    images?: StackRankImage[];
+    profile_weights?: StackRankProfileWeights;
+  };
+  return {
+    images: data.images ?? [],
+    profileWeights: data.profile_weights ?? {},
+  };
 }
 
 export default function Home() {
@@ -41,6 +55,7 @@ export default function Home() {
   const [windowError, setWindowError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [noMoreImages, setNoMoreImages] = useState(false);
+  const [profileWeights, setProfileWeights] = useState<StackRankProfileWeights>({});
 
   const imageCacheRef = useRef<StackRankImage[]>([]);
   const refillInFlightRef = useRef(false);
@@ -57,11 +72,13 @@ export default function Home() {
     setWindowError(null);
 
     try {
-      const windowImages = await fetchStackRankBatch(limit);
+      const { images: windowImages, profileWeights: windowProfileWeights } =
+        await fetchStackRankBatch(limit);
       if (!mountedRef.current) {
         return;
       }
 
+      setProfileWeights(windowProfileWeights);
       const mergedImages = appendUniqueImages(imageCacheRef.current, windowImages);
       const addedCount = mergedImages.length - imageCacheRef.current.length;
 
@@ -135,6 +152,7 @@ export default function Home() {
             loadingMore={loadingMore}
             noMoreAvailable={noMoreImages}
             continuationErrored={windowError !== null}
+            profileWeights={profileWeights}
           />
           {windowError && <p className="text-sm text-red-600 mt-4">{windowError}</p>}
         </>

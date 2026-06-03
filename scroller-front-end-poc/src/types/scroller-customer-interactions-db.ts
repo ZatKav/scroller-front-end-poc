@@ -15,4 +15,13 @@ export interface StackRankImage {
   id: number;
   image_data: string | null;
   image_summary: string | null;
+  final_score?: number | null;
+  selection_reason?: string | null;
+}
+
+export type StackRankProfileWeights = Record<string, number>;
+
+export interface StackRankResponse {
+  images: StackRankImage[];
+  profile_weights: StackRankProfileWeights;
 }
