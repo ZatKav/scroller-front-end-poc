@@ -190,6 +190,49 @@ describe('scrollerCustomerInteractionsDbApiClient', () => {
     });
   });
 
+  describe('under a deployed base path', () => {
+    const ORIGINAL_BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH;
+
+    afterEach(() => {
+      if (ORIGINAL_BASE_PATH === undefined) {
+        delete process.env.NEXT_PUBLIC_BASE_PATH;
+      } else {
+        process.env.NEXT_PUBLIC_BASE_PATH = ORIGINAL_BASE_PATH;
+      }
+      jest.resetModules();
+    });
+
+    it('prefixes proxy and health URLs with NEXT_PUBLIC_BASE_PATH', async () => {
+      jest.resetModules();
+      process.env.NEXT_PUBLIC_BASE_PATH = '/scroller';
+
+      // Re-import so the module-level BASE_URL picks up the base path.
+      const { scrollerCustomerInteractionsDbApiClient: scopedClient } =
+        require('@/app/shared/clients/scroller-customer-interactions-db-api-client') as typeof import('@/app/shared/clients/scroller-customer-interactions-db-api-client');
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      } as Response);
+
+      await scopedClient.getStackRankImages();
+      expect(mockFetch).toHaveBeenLastCalledWith(
+        '/scroller/api/scroller-customer-interactions-db?path=%2Fimages%2Fstack-rank%3Fskip%3D0%26limit%3D10',
+        expect.any(Object),
+      );
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ status: 'ok' }),
+      } as Response);
+
+      await scopedClient.healthCheck();
+      expect(mockFetch).toHaveBeenLastCalledWith(
+        '/scroller/api/scroller-customer-interactions-db/health',
+      );
+    });
+  });
+
   describe('error propagation', () => {
     it('throws APIError for backend non-2xx responses', async () => {
       mockFetch.mockResolvedValueOnce({

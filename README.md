@@ -120,7 +120,7 @@ For CI main deploy, `.woodpecker.yml` uses `make podman-deploy` with
 Default seeded login credentials for local/CI checks:
 
 - Username `jack` / Password `jackNgrok2026!`
-- Username `phil` / Password `manager123`
+- Username `phil` / Password `letbigphilin`
 
 The previous Jack default password (`password123`) is intentionally retired and should fail login.
 If you need to rotate Jack again before exposing a public endpoint, update:
