@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { verifyToken } from '@/lib/auth';
+import { appPath } from '@/lib/base-path';
 
 interface ProtectedLayoutProps {
   children: ReactNode;
@@ -13,7 +14,7 @@ export default async function ProtectedLayout({ children }: ProtectedLayoutProps
   const token = cookieStore.get('auth-token')?.value;
 
   if (!token || !verifyToken(token)) {
-    redirect('/login');
+    redirect(appPath('/login'));
   }
 
   return <ProtectedRoute>{children}</ProtectedRoute>;

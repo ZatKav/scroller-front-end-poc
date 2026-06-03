@@ -14,6 +14,14 @@ export function getLoginCredentials(): { username: string; password: string } {
   };
 }
 
+function appPath(path: string): string {
+  const basePath = (process.env.PLAYWRIGHT_APP_BASE_PATH ?? '').replace(/\/+$/, '');
+  if (!basePath) {
+    return path;
+  }
+  return `${basePath}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 function isAuthenticatedE2EUser(user: unknown): user is AuthenticatedE2EUser {
   if (!user || typeof user !== 'object') {
     return false;
@@ -31,7 +39,7 @@ function isAuthenticatedE2EUser(user: unknown): user is AuthenticatedE2EUser {
 export async function loginAndExpectAuthenticated(page: Page): Promise<AuthenticatedE2EUser> {
   const { username, password } = getLoginCredentials();
 
-  await page.goto('/login');
+  await page.goto(appPath('/login'));
   await expect(page).toHaveURL(/\/login(?:[/?#].*)?$/);
 
   await page.getByLabel('Username').fill(username);
@@ -39,7 +47,7 @@ export async function loginAndExpectAuthenticated(page: Page): Promise<Authentic
 
   const loginResponsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url());
-    return url.pathname === '/api/auth/login' && response.request().method() === 'POST';
+    return url.pathname === appPath('/api/auth/login') && response.request().method() === 'POST';
   });
 
   await page.getByRole('button', { name: /sign in/i }).click();
@@ -51,7 +59,7 @@ export async function loginAndExpectAuthenticated(page: Page): Promise<Authentic
   expect(isAuthenticatedE2EUser(user)).toBeTruthy();
 
   await page.waitForURL((url) => url.pathname !== '/login');
-  expect(new URL(page.url()).pathname).not.toBe('/login');
+  expect(new URL(page.url()).pathname).not.toBe(appPath('/login'));
 
   return user as AuthenticatedE2EUser;
 }

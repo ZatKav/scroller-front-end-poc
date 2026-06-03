@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, AUTH_TOKEN_MAX_AGE_SECONDS } from '@/lib/auth';
+import { authCookiePath } from '@/lib/base-path';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: AUTH_TOKEN_MAX_AGE_SECONDS,
-      path: '/',
+      path: authCookiePath(),
     });
 
     return response;
