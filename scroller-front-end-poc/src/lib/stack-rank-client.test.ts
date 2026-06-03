@@ -100,4 +100,19 @@ describe('fetchStackRank', () => {
 
     expect(result).toEqual({ images: [], profile_weights: {} });
   });
+
+  it('tolerates a legacy bare-list backend response with no envelope', async () => {
+    const mockImages = [
+      { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
+      { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
+    ];
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockImages),
+    } as Response);
+
+    const result = await fetchStackRank({ customerId: 42, limit: 3 });
+
+    expect(result).toEqual({ images: mockImages, profile_weights: {} });
+  });
 });

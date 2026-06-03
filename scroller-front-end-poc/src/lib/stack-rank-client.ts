@@ -60,7 +60,18 @@ export async function fetchStackRank({
     );
   }
 
-  const payload = (await response.json()) as Partial<StackRankResponse>;
+  const payload = (await response.json()) as
+    | StackRankImage[]
+    | Partial<StackRankResponse>;
+
+  // Tolerate both response shapes so the front end works regardless of which
+  // backend version is deployed: the legacy endpoint returns a bare list of
+  // cards, while the current endpoint returns a { images, profile_weights }
+  // envelope. A bare list carries no weights, so default them to {}.
+  if (Array.isArray(payload)) {
+    return { images: payload, profile_weights: {} };
+  }
+
   return {
     images: payload.images ?? [],
     profile_weights: (payload.profile_weights ?? {}) as StackRankProfileWeights,
