@@ -3,8 +3,12 @@ import {
   CustomerImageInteractionCreate,
   StackRankImage,
 } from '@/types/scroller-customer-interactions-db';
+import { appPath } from '@/lib/base-path';
 
-const BASE_URL = '/api/scroller-customer-interactions-db';
+// These calls run in the browser, so the deployed base path is not applied
+// automatically; build the proxy URL through `appPath` so requests resolve under
+// `/scroller` rather than hitting the root path and 404-ing.
+const BASE_URL = appPath('/api/scroller-customer-interactions-db');
 
 export class APIError extends Error {
   constructor(message: string, public status: number) {

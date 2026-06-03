@@ -14,12 +14,44 @@ export function getLoginCredentials(): { username: string; password: string } {
   };
 }
 
+function basePath(): string {
+  return (process.env.PLAYWRIGHT_APP_BASE_PATH ?? '').replace(/\/+$/, '');
+}
+
 function appPath(path: string): string {
-  const basePath = (process.env.PLAYWRIGHT_APP_BASE_PATH ?? '').replace(/\/+$/, '');
-  if (!basePath) {
+  const base = basePath();
+  if (!base) {
     return path;
   }
-  return `${basePath}${path.startsWith('/') ? path : `/${path}`}`;
+  if (path === '/') {
+    return base;
+  }
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+/**
+ * Opens the deployed entry path (e.g. `/scroller`) as an unauthenticated visitor
+ * and asserts it redirects to exactly `<base>/login`, never a duplicated
+ * `<base>/<base>/login`, and that the login page renders rather than a 404.
+ *
+ * This guards the PRO-225 regression where the protected layout double-applied
+ * the base path on its server redirect.
+ */
+export async function expectEntryRedirectsToLogin(page: Page): Promise<void> {
+  const base = basePath();
+  const entryPath = base || '/';
+
+  await page.goto(entryPath);
+  await page.waitForURL((url) => url.pathname === appPath('/login'));
+
+  const pathname = new URL(page.url()).pathname;
+  expect(pathname).toBe(appPath('/login'));
+  if (base) {
+    expect(pathname.startsWith(`${base}${base}`)).toBeFalsy();
+  }
+
+  // The login form must be displayed instead of a 404 page.
+  await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
 }
 
 function isAuthenticatedE2EUser(user: unknown): user is AuthenticatedE2EUser {
@@ -58,8 +90,11 @@ export async function loginAndExpectAuthenticated(page: Page): Promise<Authentic
   const user = (loginResponseBody as { user?: unknown }).user;
   expect(isAuthenticatedE2EUser(user)).toBeTruthy();
 
-  await page.waitForURL((url) => url.pathname !== '/login');
-  expect(new URL(page.url()).pathname).not.toBe(appPath('/login'));
+  // Landing must be the protected scroller entry page, not just "off the login
+  // page": wait for the deployed entry path and confirm the protected heading.
+  await page.waitForURL((url) => url.pathname === appPath('/'));
+  expect(new URL(page.url()).pathname).toBe(appPath('/'));
+  await expect(page.getByRole('heading', { name: 'Scroller' })).toBeVisible();
 
   return user as AuthenticatedE2EUser;
 }
