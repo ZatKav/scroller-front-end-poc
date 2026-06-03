@@ -1,4 +1,4 @@
-import { fetchStackRankImages } from '@/lib/stack-rank-client';
+import { fetchStackRank, fetchStackRankImages } from '@/lib/stack-rank-client';
 
 const mockFetch = jest.fn();
 const originalBaseUrl = process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL;
@@ -32,7 +32,7 @@ describe('fetchStackRankImages', () => {
     ];
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve(mockImages),
+      json: () => Promise.resolve({ images: mockImages, profile_weights: {} }),
     } as Response);
 
     const result = await fetchStackRankImages({ customerId: 42, limit: 3 });
@@ -56,7 +56,7 @@ describe('fetchStackRankImages', () => {
     ];
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve(mockImages),
+      json: () => Promise.resolve({ images: mockImages, profile_weights: {} }),
     } as Response);
 
     await fetchStackRankImages({ skip: 4, limit: 2 });
@@ -65,5 +65,54 @@ describe('fetchStackRankImages', () => {
       'http://interactions.local/api/images/stack-rank?limit=2&skip=4',
       expect.any(Object),
     );
+  });
+});
+
+describe('fetchStackRank', () => {
+  it('returns the images and per-customer profile weights from the envelope', async () => {
+    const mockImages = [
+      {
+        id: 2,
+        image_data: 'data:image/png;base64,BBB=',
+        image_summary: 'B property',
+        final_score: 0.42,
+        selection_reason: 'exploit',
+      },
+    ];
+    const mockWeights = { 'decor_style:modern': 1.0, 'material:quartz': 0.5 };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ images: mockImages, profile_weights: mockWeights }),
+    } as Response);
+
+    const result = await fetchStackRank({ customerId: 42, limit: 3 });
+
+    expect(result).toEqual({ images: mockImages, profile_weights: mockWeights });
+  });
+
+  it('defaults to empty images and weights when the upstream omits them', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({}),
+    } as Response);
+
+    const result = await fetchStackRank({ customerId: 42 });
+
+    expect(result).toEqual({ images: [], profile_weights: {} });
+  });
+
+  it('tolerates a legacy bare-list backend response with no envelope', async () => {
+    const mockImages = [
+      { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
+      { id: 2, image_data: 'data:image/png;base64,BBB=', image_summary: 'B property' },
+    ];
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockImages),
+    } as Response);
+
+    const result = await fetchStackRank({ customerId: 42, limit: 3 });
+
+    expect(result).toEqual({ images: mockImages, profile_weights: {} });
   });
 });

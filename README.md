@@ -68,6 +68,13 @@ as `customer_id`, does not replay cached ordinal windows, and only shows termina
 the upstream continuation returns no renderable unseen cards. Continuation failures keep already buffered
 cards intact and show `More images could not be loaded.`.
 
+Under each image the page also renders the raw stack-rank weights as JSON for debugging: the
+per-customer `profile_weights` map produced by the ranking algorithm plus the current card's
+`final_score` and `selection_reason`. These come from the `/api/stack-rank` envelope
+(`{ images, profile_weights }`) and refresh per batch fetch, so the weights visibly update as the
+customer likes/skips images and new continuation batches load. A cold-start customer with no
+interaction history shows an empty `{}` profile.
+
 ## Testing
 
 ```bash

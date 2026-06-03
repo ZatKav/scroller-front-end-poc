@@ -11,16 +11,23 @@ jest.mock('@/lib/stack-rank-client', () => {
   const actual = jest.requireActual('@/lib/stack-rank-client');
   return {
     ...actual,
-    fetchStackRankImages: jest.fn(),
+    fetchStackRank: jest.fn(),
   };
 });
 
 import { verifyToken } from '@/lib/auth';
-import { fetchStackRankImages, StackRankClientError } from '@/lib/stack-rank-client';
+import { fetchStackRank, StackRankClientError } from '@/lib/stack-rank-client';
 import { GET } from './route';
 
 const mockVerifyToken = verifyToken as jest.Mock;
-const mockFetchStackRankImages = fetchStackRankImages as jest.Mock;
+const mockFetchStackRank = fetchStackRank as jest.Mock;
+
+function stackRankResponse(
+  images: Array<Record<string, unknown>>,
+  profile_weights: Record<string, number> = {},
+) {
+  return { images, profile_weights };
+}
 
 const MOCK_USER = { id: 1, username: 'testuser', email: 'test@example.com', role: 'user' };
 
@@ -34,7 +41,7 @@ function makeRequest(token?: string, query = ''): NextRequest {
 
 beforeEach(() => {
   mockVerifyToken.mockReset();
-  mockFetchStackRankImages.mockReset();
+  mockFetchStackRank.mockReset();
 });
 
 describe('GET /api/stack-rank', () => {
@@ -61,8 +68,9 @@ describe('GET /api/stack-rank', () => {
         { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
         { id: 2, image_data: null, image_summary: 'Hidden card' },
       ];
+      const mockWeights = { 'decor_style:modern': 1.0 };
       mockVerifyToken.mockReturnValueOnce(MOCK_USER);
-      mockFetchStackRankImages.mockResolvedValueOnce(mockImages);
+      mockFetchStackRank.mockResolvedValueOnce(stackRankResponse(mockImages, mockWeights));
 
       const response = await GET(makeRequest('valid-token'));
 
@@ -71,38 +79,39 @@ describe('GET /api/stack-rank', () => {
       expect(body).toEqual({
         ok: true,
         images: [{ id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' }],
+        profile_weights: mockWeights,
       });
-      expect(mockFetchStackRankImages).toHaveBeenCalledWith({ customerId: MOCK_USER.id, limit: 10 });
+      expect(mockFetchStackRank).toHaveBeenCalledWith({ customerId: MOCK_USER.id, limit: 10 });
     });
 
     it('uses requested limit and ignores legacy skip windows', async () => {
       mockVerifyToken.mockReturnValueOnce(MOCK_USER);
-      mockFetchStackRankImages.mockResolvedValueOnce([]);
+      mockFetchStackRank.mockResolvedValueOnce(stackRankResponse([]));
 
       const response = await GET(makeRequest('valid-token', '?skip=100&limit=3'));
 
       expect(response.status).toBe(200);
-      expect(mockFetchStackRankImages).toHaveBeenCalledWith({ customerId: MOCK_USER.id, limit: 3 });
+      expect(mockFetchStackRank).toHaveBeenCalledWith({ customerId: MOCK_USER.id, limit: 3 });
     });
 
     it('normalizes non-integer or out-of-range limits', async () => {
       mockVerifyToken.mockReturnValue(MOCK_USER);
-      mockFetchStackRankImages.mockResolvedValue([]);
+      mockFetchStackRank.mockResolvedValue(stackRankResponse([]));
 
       await GET(makeRequest('valid-token', '?limit=-2'));
       await GET(makeRequest('valid-token', '?limit=2.9'));
       await GET(makeRequest('valid-token', '?limit=not-a-number'));
 
-      expect(mockFetchStackRankImages).toHaveBeenNthCalledWith(1, { customerId: MOCK_USER.id, limit: 1 });
-      expect(mockFetchStackRankImages).toHaveBeenNthCalledWith(2, { customerId: MOCK_USER.id, limit: 2 });
-      expect(mockFetchStackRankImages).toHaveBeenNthCalledWith(3, { customerId: MOCK_USER.id, limit: 10 });
+      expect(mockFetchStackRank).toHaveBeenNthCalledWith(1, { customerId: MOCK_USER.id, limit: 1 });
+      expect(mockFetchStackRank).toHaveBeenNthCalledWith(2, { customerId: MOCK_USER.id, limit: 2 });
+      expect(mockFetchStackRank).toHaveBeenNthCalledWith(3, { customerId: MOCK_USER.id, limit: 10 });
     });
   });
 
   describe('upstream failure', () => {
     it('returns 502 when upstream returns an error', async () => {
       mockVerifyToken.mockReturnValueOnce(MOCK_USER);
-      mockFetchStackRankImages.mockRejectedValueOnce(
+      mockFetchStackRank.mockRejectedValueOnce(
         new StackRankClientError('Stack-rank upstream returned 502', 502),
       );
 
@@ -117,7 +126,7 @@ describe('GET /api/stack-rank', () => {
 
     it('returns 502 when there is a network error', async () => {
       mockVerifyToken.mockReturnValueOnce(MOCK_USER);
-      mockFetchStackRankImages.mockRejectedValueOnce(
+      mockFetchStackRank.mockRejectedValueOnce(
         new StackRankClientError('Network error fetching stack-rank: connection refused', 0),
       );
 
