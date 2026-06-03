@@ -5,6 +5,7 @@ import ImageScroller from './ImageScroller';
 jest.mock('@/app/shared/clients/scroller-customer-interactions-db-api-client', () => ({
   scrollerCustomerInteractionsDbApiClient: {
     createCustomerImageInteraction: jest.fn().mockResolvedValue({}),
+    deleteCustomerImageInteractions: jest.fn().mockResolvedValue({ deleted: 0 }),
   },
 }));
 
@@ -12,6 +13,8 @@ import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/sc
 
 const mockCreateInteraction =
   scrollerCustomerInteractionsDbApiClient.createCustomerImageInteraction as jest.Mock;
+const mockDeleteInteractions =
+  scrollerCustomerInteractionsDbApiClient.deleteCustomerImageInteractions as jest.Mock;
 
 const IMAGES = [
   { id: 1, image_data: 'AAAA', image_summary: 'Nice house' },
@@ -22,10 +25,13 @@ const CUSTOMER_ID = 42;
 
 beforeEach(() => {
   mockCreateInteraction.mockClear();
+  mockDeleteInteractions.mockClear();
+  mockDeleteInteractions.mockResolvedValue({ deleted: 0 });
 });
 
 afterEach(() => {
   jest.useRealTimers();
+  jest.restoreAllMocks();
 });
 
 describe('ImageScroller', () => {
@@ -264,6 +270,78 @@ describe('ImageScroller', () => {
     render(<ImageScroller images={imagesWithDataUri} customerId={CUSTOMER_ID} />);
 
     expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/png;base64,CCCC');
+  });
+
+  describe('reset interactions', () => {
+    it('renders the reset button below the action buttons', () => {
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      expect(
+        screen.getByRole('button', { name: 'Reset my interactions' }),
+      ).toBeInTheDocument();
+    });
+
+    it('deletes the current user interactions after confirmation and shows the count', async () => {
+      jest.spyOn(window, 'confirm').mockReturnValue(true);
+      mockDeleteInteractions.mockResolvedValueOnce({ deleted: 3 });
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        await user.click(screen.getByRole('button', { name: 'Reset my interactions' }));
+      });
+
+      expect(mockDeleteInteractions).toHaveBeenCalledWith(CUSTOMER_ID);
+      await waitFor(() => {
+        expect(screen.getByRole('status')).toHaveTextContent('Reset complete — removed 3 interactions.');
+      });
+    });
+
+    it('does not send a delete request when the confirmation is cancelled', async () => {
+      jest.spyOn(window, 'confirm').mockReturnValue(false);
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        await user.click(screen.getByRole('button', { name: 'Reset my interactions' }));
+      });
+
+      expect(mockDeleteInteractions).not.toHaveBeenCalled();
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    it('reports when there were no interactions to reset', async () => {
+      jest.spyOn(window, 'confirm').mockReturnValue(true);
+      mockDeleteInteractions.mockResolvedValueOnce({ deleted: 0 });
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        await user.click(screen.getByRole('button', { name: 'Reset my interactions' }));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('status')).toHaveTextContent('You had no interactions to reset.');
+      });
+    });
+
+    it('shows an error message when the delete fails', async () => {
+      jest.spyOn(window, 'confirm').mockReturnValue(true);
+      jest.spyOn(console, 'error').mockImplementation();
+      mockDeleteInteractions.mockRejectedValueOnce(new Error('boom'));
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        await user.click(screen.getByRole('button', { name: 'Reset my interactions' }));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('status')).toHaveTextContent(
+          'Could not reset your interactions. Please try again.',
+        );
+      });
+    });
   });
 
   it('renders the stack-rank weights as raw JSON under the image', () => {
