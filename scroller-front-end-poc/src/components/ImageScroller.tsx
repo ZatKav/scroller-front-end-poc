@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { StackRankImage } from '@/types/scroller-customer-interactions-db';
+import type {
+  StackRankImage,
+  StackRankProfileWeights,
+} from '@/types/scroller-customer-interactions-db';
 import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
 
 interface ImageScrollerProps {
@@ -11,6 +14,7 @@ interface ImageScrollerProps {
   loadingMore?: boolean;
   noMoreAvailable?: boolean;
   continuationErrored?: boolean;
+  profileWeights?: StackRankProfileWeights;
 }
 
 export default function ImageScroller({
@@ -20,6 +24,7 @@ export default function ImageScroller({
   loadingMore = false,
   noMoreAvailable = true,
   continuationErrored = false,
+  profileWeights = {},
 }: ImageScrollerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageShownAtMs, setImageShownAtMs] = useState(() => Date.now());
@@ -50,6 +55,14 @@ export default function ImageScroller({
   }
 
   const currentImage = images[currentIndex];
+
+  const stackRankWeights = {
+    profile_weights: profileWeights,
+    image_score: {
+      final_score: currentImage.final_score ?? null,
+      selection_reason: currentImage.selection_reason ?? null,
+    },
+  };
 
   async function handleAction(action: 0 | 1) {
     setSubmitting(true);
@@ -86,6 +99,12 @@ export default function ImageScroller({
       {currentImage.image_summary && (
         <p className="text-sm text-gray-600 max-w-md text-center">{currentImage.image_summary}</p>
       )}
+      <pre
+        data-testid="stack-rank-weights"
+        className="text-xs text-left text-gray-700 bg-gray-100 rounded-md p-3 max-w-md w-full overflow-x-auto"
+      >
+        {JSON.stringify(stackRankWeights, null, 2)}
+      </pre>
       <div className="flex gap-4">
         <button
           onClick={() => handleAction(0)}

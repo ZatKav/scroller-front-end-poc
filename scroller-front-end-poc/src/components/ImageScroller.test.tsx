@@ -265,4 +265,41 @@ describe('ImageScroller', () => {
 
     expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/png;base64,CCCC');
   });
+
+  it('renders the stack-rank weights as raw JSON under the image', () => {
+    const scoredImages = [
+      {
+        id: 1,
+        image_data: 'AAAA',
+        image_summary: 'Nice house',
+        final_score: 0.73,
+        selection_reason: 'exploit',
+      },
+    ];
+    const profileWeights = { 'decor_style:modern': 1.0, 'material:quartz': 0.5 };
+
+    render(
+      <ImageScroller images={scoredImages} customerId={CUSTOMER_ID} profileWeights={profileWeights} />,
+    );
+
+    const weightsBlock = screen.getByTestId('stack-rank-weights');
+    const parsed = JSON.parse(weightsBlock.textContent ?? '');
+    expect(parsed).toEqual({
+      profile_weights: profileWeights,
+      image_score: { final_score: 0.73, selection_reason: 'exploit' },
+    });
+    // The existing summary text is still shown alongside the weights.
+    expect(screen.getByText('Nice house')).toBeInTheDocument();
+  });
+
+  it('renders an empty weights object for a cold-start customer with no scores', () => {
+    render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+    const weightsBlock = screen.getByTestId('stack-rank-weights');
+    const parsed = JSON.parse(weightsBlock.textContent ?? '');
+    expect(parsed).toEqual({
+      profile_weights: {},
+      image_score: { final_score: null, selection_reason: null },
+    });
+  });
 });
