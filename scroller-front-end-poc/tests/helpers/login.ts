@@ -105,6 +105,37 @@ export async function expectEntryRedirectsToLogin(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
 }
 
+/**
+ * Given an already-authenticated session, navigates directly to the public entry
+ * path (e.g. `/scroller`) and asserts the protected scroller page renders rather
+ * than bouncing to login, then confirms a refresh keeps the visitor on it.
+ *
+ * Guards PRO-232: the shared nginx used to unconditionally 302 the exact
+ * `/scroller` entry path to `/scroller/login`, so authenticated direct navigation
+ * (notably from mobile, and on refresh after login) was always sent back to login
+ * despite a valid session.
+ */
+export async function expectAuthenticatedEntryRendersScroller(page: Page): Promise<void> {
+  const base = basePath();
+  const entryPath = base || '/';
+
+  await page.goto(entryPath);
+  await expect(page.getByRole('heading', { name: 'Scroller' })).toBeVisible({
+    timeout: 30_000,
+  });
+  const afterEntry = new URL(page.url()).pathname;
+  expect(afterEntry).toBe(appPath('/'));
+  expect(afterEntry).not.toBe(appPath('/login'));
+
+  // A refresh / direct re-entry must keep the authenticated visitor on the
+  // protected page (acceptance criterion for mobile login survivability).
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Scroller' })).toBeVisible({
+    timeout: 30_000,
+  });
+  expect(new URL(page.url()).pathname).toBe(appPath('/'));
+}
+
 function isAuthenticatedE2EUser(user: unknown): user is AuthenticatedE2EUser {
   if (!user || typeof user !== 'object') {
     return false;
