@@ -292,3 +292,26 @@ steps:
         else
           echo "No retained CI logs found; skipping ci-logs copy"
         fi
+
+        # Preserve raw Playwright artifacts (trace.zip + on-failure screenshots
+        # and the HTML report) from the post-deploy smoke. The smoke step writes
+        # these into the shared workspace under scroller-front-end-poc/, so they
+        # are readable here even though it runs in a separate container. Traces
+        # are produced only on failure (retain-on-failure), so this is a no-op on
+        # green runs. NB: traces embed request headers incl. the test user's auth
+        # cookie -- keep these reports non-public.
+        PW_SRC="scroller-front-end-poc"
+        if [ -d "$PW_SRC/test-results" ] && [ "$(ls -A "$PW_SRC/test-results" 2>/dev/null)" ]; then
+          mkdir -p "$REPORT_DIR/playwright/test-results"
+          cp -r "$PW_SRC/test-results/." "$REPORT_DIR/playwright/test-results/" 2>/dev/null || true
+          echo "Playwright traces URL: http://localhost:8080/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/playwright/test-results/"
+        else
+          echo "No Playwright test-results found; skipping trace copy"
+        fi
+        if [ -d "$PW_SRC/playwright-report" ] && [ "$(ls -A "$PW_SRC/playwright-report" 2>/dev/null)" ]; then
+          mkdir -p "$REPORT_DIR/playwright/playwright-report"
+          cp -r "$PW_SRC/playwright-report/." "$REPORT_DIR/playwright/playwright-report/" 2>/dev/null || true
+          echo "Playwright HTML report URL: http://localhost:8080/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/playwright/playwright-report/index.html"
+        else
+          echo "No Playwright HTML report found; skipping report copy"
+        fi
