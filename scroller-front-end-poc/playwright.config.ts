@@ -47,6 +47,14 @@ export default defineConfig({
       },
   use: {
     baseURL,
+    // The public ngrok free endpoint serves an interstitial browser-warning page
+    // for ordinary browser navigations, which would hijack the smoke before it
+    // ever reaches the app. Sending this header skips the warning. It is a no-op
+    // on non-ngrok origins (e.g. host.containers.internal), so set it for every
+    // deploy-smoke run rather than sniffing the hostname.
+    extraHTTPHeaders: isDeploySmoke
+      ? { 'ngrok-skip-browser-warning': 'true' }
+      : undefined,
     // Keep a trace and screenshot for any failing test (independent of retries)
     // so post-deploy smoke failures are debuggable from the stored artifacts.
     // Nothing is retained for passing runs, which keeps volume and the exposure
@@ -60,6 +68,17 @@ export default defineConfig({
           name: 'chromium',
           use: {
             ...devices['Desktop Chrome'],
+            launchOptions: { args: deploySmokeChromiumArgs },
+          },
+        },
+        {
+          // At least one mobile profile so the smoke exercises the public entry
+          // path the way a phone does (PRO-232 reproduced only on mobile / direct
+          // navigation). Pixel 5 is Chromium-based, so the insecure-origin flag
+          // still applies when the smoke runs against an http host origin.
+          name: 'mobile-chrome',
+          use: {
+            ...devices['Pixel 5'],
             launchOptions: { args: deploySmokeChromiumArgs },
           },
         },
