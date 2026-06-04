@@ -118,7 +118,10 @@ steps:
     environment:
       DOCKER_HOST: unix:///var/run/docker.sock
       CONTAINER_HOST: unix:///var/run/docker.sock
-      PODMAN_HEALTHCHECK_URL: http://host.containers.internal:8410
+      # The app is served under the /scroller base path (NEXT_PUBLIC_BASE_PATH),
+      # so the bare root returns 404. Probe the login page under the base path
+      # (matches the Makefile default and renders without auth).
+      PODMAN_HEALTHCHECK_URL: http://host.containers.internal:8410/scroller/login
     depends_on:
       - build-and-push
     when:
