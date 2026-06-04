@@ -34,6 +34,7 @@ The ticket payload did not include a description. The issue title requests inves
 
 - Inspected the latest failure-only Allure report for `ZatKav/scroller-front-end-poc/main/caf0169d090bb8c8d2849cd83364d38f67119766`.
 - Inspected the failed Playwright trace network payload: login returned `200 OK` and `Set-Cookie: auth-token=...; Path=/scroller; Secure`, while subsequent protected RSC requests carried no `Cookie` header and the page snapshot stayed on the login form.
+- Follow-up CI evidence showed the deploy-smoke bridge reached `browserContext.addCookies`, but Playwright rejected the cookie object because it mixed `url` with `path`; the bridge now uses the supported `domain + path` cookie shape.
 - `PLAYWRIGHT_DEPLOY_SMOKE=1 PLAYWRIGHT_BASE_URL=http://localhost:8410 PLAYWRIGHT_APP_BASE_PATH=/scroller npx playwright test tests/deploy-login.smoke.spec.ts --project=chromium` passed locally against the deployed app through the host-equivalent `localhost` origin.
 - `npm test -- --runTestsByPath src/lib/base-path.test.ts 'src/app/(protected)/layout.test.tsx'` passed.
 - `npm run test:e2e:deploy-smoke` could not run as-is on the host because `host.containers.internal` is only resolvable from the CI/container network; the equivalent localhost smoke command above validates the same test logic.
