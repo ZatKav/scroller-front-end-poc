@@ -23,10 +23,30 @@ const IMAGES = [
 
 const CUSTOMER_ID = 42;
 
+let reloadMock: jest.Mock;
+const originalLocation = window.location;
+
 beforeEach(() => {
   mockCreateInteraction.mockClear();
   mockDeleteInteractions.mockClear();
   mockDeleteInteractions.mockResolvedValue({ deleted: 0 });
+
+  // jsdom does not implement navigation, so stub window.location.reload to
+  // assert the post-reset page refresh without actually reloading (PRO-231).
+  reloadMock = jest.fn();
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    writable: true,
+    value: { ...originalLocation, reload: reloadMock },
+  });
+});
+
+afterEach(() => {
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    writable: true,
+    value: originalLocation,
+  });
 });
 
 afterEach(() => {
@@ -342,7 +362,7 @@ describe('ImageScroller', () => {
       ).toBeInTheDocument();
     });
 
-    it('deletes the current user interactions after confirmation and shows the count', async () => {
+    it('deletes the current user interactions after confirmation and reloads the page', async () => {
       jest.spyOn(window, 'confirm').mockReturnValue(true);
       mockDeleteInteractions.mockResolvedValueOnce({ deleted: 3 });
       const user = userEvent.setup();
@@ -354,11 +374,12 @@ describe('ImageScroller', () => {
 
       expect(mockDeleteInteractions).toHaveBeenCalledWith(CUSTOMER_ID);
       await waitFor(() => {
-        expect(screen.getByRole('status')).toHaveTextContent('Reset complete — removed 3 interactions.');
+        expect(reloadMock).toHaveBeenCalledTimes(1);
       });
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 
-    it('does not send a delete request when the confirmation is cancelled', async () => {
+    it('does not send a delete request or reload when the confirmation is cancelled', async () => {
       jest.spyOn(window, 'confirm').mockReturnValue(false);
       const user = userEvent.setup();
       render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
@@ -368,10 +389,11 @@ describe('ImageScroller', () => {
       });
 
       expect(mockDeleteInteractions).not.toHaveBeenCalled();
+      expect(reloadMock).not.toHaveBeenCalled();
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 
-    it('reports when there were no interactions to reset', async () => {
+    it('reloads the page even when there were no interactions to reset', async () => {
       jest.spyOn(window, 'confirm').mockReturnValue(true);
       mockDeleteInteractions.mockResolvedValueOnce({ deleted: 0 });
       const user = userEvent.setup();
@@ -381,12 +403,13 @@ describe('ImageScroller', () => {
         await user.click(screen.getByRole('button', { name: 'Reset my interactions' }));
       });
 
+      expect(mockDeleteInteractions).toHaveBeenCalledWith(CUSTOMER_ID);
       await waitFor(() => {
-        expect(screen.getByRole('status')).toHaveTextContent('You had no interactions to reset.');
+        expect(reloadMock).toHaveBeenCalledTimes(1);
       });
     });
 
-    it('shows an error message when the delete fails', async () => {
+    it('shows an error message and does not reload when the delete fails', async () => {
       jest.spyOn(window, 'confirm').mockReturnValue(true);
       jest.spyOn(console, 'error').mockImplementation();
       mockDeleteInteractions.mockRejectedValueOnce(new Error('boom'));
@@ -402,10 +425,11 @@ describe('ImageScroller', () => {
           'Could not reset your interactions. Please try again.',
         );
       });
+      expect(reloadMock).not.toHaveBeenCalled();
     });
 
     describe('from the no-more-images screen', () => {
-      it('deletes interactions after confirmation and shows the count', async () => {
+      it('deletes interactions after confirmation and reloads the page', async () => {
         jest.spyOn(window, 'confirm').mockReturnValue(true);
         mockDeleteInteractions.mockResolvedValueOnce({ deleted: 3 });
         const user = userEvent.setup();
@@ -417,13 +441,11 @@ describe('ImageScroller', () => {
 
         expect(mockDeleteInteractions).toHaveBeenCalledWith(CUSTOMER_ID);
         await waitFor(() => {
-          expect(screen.getByRole('status')).toHaveTextContent('Reset complete — removed 3 interactions.');
+          expect(reloadMock).toHaveBeenCalledTimes(1);
         });
-        // Customer stays on the terminal screen after resetting.
-        expect(screen.getByText('No more images')).toBeInTheDocument();
       });
 
-      it('does not send a delete request when the confirmation is cancelled', async () => {
+      it('does not send a delete request or reload when the confirmation is cancelled', async () => {
         jest.spyOn(window, 'confirm').mockReturnValue(false);
         const user = userEvent.setup();
         render(<ImageScroller images={[]} customerId={CUSTOMER_ID} />);
@@ -433,10 +455,11 @@ describe('ImageScroller', () => {
         });
 
         expect(mockDeleteInteractions).not.toHaveBeenCalled();
+        expect(reloadMock).not.toHaveBeenCalled();
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
       });
 
-      it('reports when there were no interactions to reset', async () => {
+      it('reloads the page even when there were no interactions to reset', async () => {
         jest.spyOn(window, 'confirm').mockReturnValue(true);
         mockDeleteInteractions.mockResolvedValueOnce({ deleted: 0 });
         const user = userEvent.setup();
@@ -447,11 +470,11 @@ describe('ImageScroller', () => {
         });
 
         await waitFor(() => {
-          expect(screen.getByRole('status')).toHaveTextContent('You had no interactions to reset.');
+          expect(reloadMock).toHaveBeenCalledTimes(1);
         });
       });
 
-      it('shows an error message when the delete fails', async () => {
+      it('shows an error message and does not reload when the delete fails', async () => {
         jest.spyOn(window, 'confirm').mockReturnValue(true);
         jest.spyOn(console, 'error').mockImplementation();
         mockDeleteInteractions.mockRejectedValueOnce(new Error('boom'));
@@ -467,6 +490,7 @@ describe('ImageScroller', () => {
             'Could not reset your interactions. Please try again.',
           );
         });
+        expect(reloadMock).not.toHaveBeenCalled();
       });
     });
   });

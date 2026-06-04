@@ -30,7 +30,7 @@ export default function ImageScroller({
   const [imageShownAtMs, setImageShownAtMs] = useState(() => Date.now());
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const [resetMessage, setResetMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   useEffect(() => {
     setImageShownAtMs(Date.now());
@@ -101,22 +101,17 @@ export default function ImageScroller({
     }
 
     setResetting(true);
-    setResetMessage(null);
+    setResetError(null);
     try {
-      const { deleted } = await scrollerCustomerInteractionsDbApiClient.deleteCustomerImageInteractions(
-        customerId,
-      );
-      setResetMessage({
-        kind: 'success',
-        text:
-          deleted === 0
-            ? 'You had no interactions to reset.'
-            : `Reset complete — removed ${deleted} interaction${deleted === 1 ? '' : 's'}.`,
-      });
+      await scrollerCustomerInteractionsDbApiClient.deleteCustomerImageInteractions(customerId);
+      // Refresh the page so the stack-rank queue and profile weights are
+      // re-fetched from scratch, reflecting the cleared interactions (PRO-231).
+      // Done unconditionally on a successful delete, regardless of how many
+      // interactions were removed.
+      window.location.reload();
     } catch (error) {
       console.error('Failed to reset interactions:', error);
-      setResetMessage({ kind: 'error', text: 'Could not reset your interactions. Please try again.' });
-    } finally {
+      setResetError('Could not reset your interactions. Please try again.');
       setResetting(false);
     }
   }
@@ -131,12 +126,9 @@ export default function ImageScroller({
         >
           {resetting ? 'Resetting…' : 'Reset my interactions'}
         </button>
-        {resetMessage && (
-          <p
-            role="status"
-            className={`text-sm ${resetMessage.kind === 'error' ? 'text-red-600' : 'text-gray-600'}`}
-          >
-            {resetMessage.text}
+        {resetError && (
+          <p role="status" className="text-sm text-red-600">
+            {resetError}
           </p>
         )}
       </>
