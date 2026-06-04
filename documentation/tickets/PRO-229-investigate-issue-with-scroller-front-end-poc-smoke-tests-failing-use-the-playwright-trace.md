@@ -1,4 +1,4 @@
-# codex/pro-229-investigate-issue-with-scroller-front-end-poc-smoke-tests-failing-use-the-playwright-trace
+# PRO-229-investigate-issue-with-scroller-front-end-poc-smoke-tests-failing-use-the-playwright-trace
 
 ## Ticket Snapshot
 
@@ -42,4 +42,4 @@ The ticket payload did not include a description. The issue title requests inves
 ## Changed Files
 
 - `scroller-front-end-poc/tests/helpers/login.ts`: bridge the deploy-smoke auth cookie after a successful login response and reload the protected entry path.
-- `documentation/tickets/codex/pro-229-investigate-issue-with-scroller-front-end-poc-smoke-tests-failing-use-the-playwright-trace.md`: record the CI evidence, scope, and validation.
+- `documentation/tickets/PRO-229-investigate-issue-with-scroller-front-end-poc-smoke-tests-failing-use-the-playwright-trace.md`: record the CI evidence, scope, and validation.
