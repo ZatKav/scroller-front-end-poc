@@ -38,6 +38,13 @@ root cause is fixed separately in `scroller-customer-interactions-db`.
     `http://host.containers.internal:8410/scroller/login` (matches the Makefile
     default, renders without auth). Pre-existing deploy-config bug surfaced while
     merging this branch; unrelated to the page-level change.
+  - After the health check, warm `/scroller/` and `/scroller/api/auth/me`
+    (non-fatal curls). The post-deploy smoke's first authenticated hit triggers
+    the client-side `/api/auth/me` check, and `AuthContext` bounces to `/login`
+    if that call exceeds its 5s timeout — so a cold first hit could make the
+    "Scroller" heading never render and flake the smoke. Pre-warming the routes
+    the health check doesn't cover removes that race. Pre-existing readiness
+    fragility, not the page-level change.
 
 ## Tests
 - Ran: `npx jest` (equivalent to `make test-dashboard-unit`) in `scroller-front-end-poc`.

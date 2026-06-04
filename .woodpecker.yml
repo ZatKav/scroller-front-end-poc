@@ -160,6 +160,16 @@ steps:
             fi
           fi
           make podman-deploy
+          # Warm the routes the post-deploy smoke exercises before it runs. The
+          # health check only probes /scroller/login; the smoke then makes its
+          # first authenticated hit to the protected entry, which triggers the
+          # client-side /api/auth/me check (AuthContext bounces to login if that
+          # call exceeds its 5s timeout). Pre-warming avoids that cold first-hit
+          # race. Non-fatal: unauthenticated hits return redirect/401, which is
+          # fine -- we only need the routes warmed.
+          echo "Warming protected entry and auth-check routes for the smoke step..."
+          curl -s -o /dev/null "http://host.containers.internal:8410/scroller/" || true
+          curl -s -o /dev/null "http://host.containers.internal:8410/scroller/api/auth/me" || true
         ' >"$LOG" 2>&1
         STATUS=$?
         cat "$LOG"
