@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { loginAndExpectAuthenticated } from './helpers/login';
-import { getCustomerImageInteractions, waitForNewInteraction } from './helpers/scroller-customer-interactions-db';
+import {
+  deleteCustomerImageInteractions,
+  getCustomerImageInteractions,
+  waitForNewInteraction,
+} from './helpers/scroller-customer-interactions-db';
 
 const RETIRED_JACK_PASSWORD = 'password123';
 
@@ -42,6 +46,17 @@ test('pre-deploy login check passes with valid credentials', async ({ page }) =>
   test.setTimeout(60000);
 
   const user = await loginAndExpectAuthenticated(page);
+
+  // The smoke test Likes and Skips images, which permanently records
+  // interactions for this user. The scroller only serves images the user has
+  // not yet interacted with, so without a reset the queue depletes across runs
+  // until the page shows "No more images" and the scroller-image assertion
+  // below fails. Reset this user's interactions and reload so the scroller
+  // always starts from a fresh, fully-populated queue.
+  await deleteCustomerImageInteractions(user.id);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Scroller' })).toBeVisible();
+
   const scrollerImage = page.getByTestId('scroller-image');
   await expect(scrollerImage).toBeVisible({ timeout: 30000 });
 

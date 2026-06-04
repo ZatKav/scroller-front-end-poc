@@ -31,6 +31,17 @@ message shown in place — no automatic refetch/restart.
     behavior tests (confirm → delete + count, cancel → no-op, zero-count message,
     failure message), including an assertion that the customer remains on the
     terminal screen after a successful reset.
+- `tests/helpers/scroller-customer-interactions-db.ts` /
+  `tests/login.spec.ts` (e2e stabilization, pre-existing CI failure):
+  - The `pre-deploy login check` smoke test Likes/Skips images, permanently
+    recording interactions for the test user. The scroller only serves
+    not-yet-seen images, so the user's queue depleted across pipeline runs until
+    the page showed "No more images" and the `scroller-image` assertion failed —
+    independent of this ticket's UI change. Added a
+    `deleteCustomerImageInteractions` helper (DELETE
+    `/api/customer-image-interactions/{id}`) and reset the user's interactions
+    (then reload) at the start of the test so the scroller always starts from a
+    fresh, fully-populated queue.
 
 ## Tests
 - Ran: `make test-dashboard-unit` (jest) in `scroller-front-end-poc`.

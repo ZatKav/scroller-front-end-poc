@@ -58,6 +58,32 @@ export async function getCustomerImageInteractions(
   return data as CustomerImageInteractionRecord[];
 }
 
+export async function deleteCustomerImageInteractions(customerId: number): Promise<number> {
+  const { baseUrl, apiKey } = getInteractionsDbConfig();
+  const url = `${baseUrl.replace(/\/$/, '')}/api/customer-image-interactions/${customerId}`;
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text();
+    throw new Error(
+      `Failed to delete customer interactions (${response.status}): ${responseText || response.statusText}`,
+    );
+  }
+
+  const data = await response.json();
+  if (typeof data?.deleted !== 'number') {
+    throw new Error('Customer interactions DELETE API returned an unexpected payload.');
+  }
+
+  return data.deleted as number;
+}
+
 function isNonNullInteger(value: number | null): value is number {
   return typeof value === 'number' && Number.isInteger(value);
 }
