@@ -43,7 +43,7 @@ export default function ImageScroller({
         : 'Loading more images...';
 
       return (
-        <div className="flex flex-col items-center gap-6 py-12">
+        <div className={`flex flex-col items-center py-12${continuationErrored ? ' gap-6' : ''}`}>
           <p className="text-lg text-gray-500">{emptyStateText}</p>
           {continuationErrored && renderResetControls()}
         </div>
