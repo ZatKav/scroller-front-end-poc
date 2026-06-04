@@ -28,6 +28,9 @@ const originalLocation = window.location;
 
 beforeEach(() => {
   mockCreateInteraction.mockClear();
+  // Reset to the resolved default: some tests install a never-resolving
+  // implementation, which otherwise leaks into later tests via the shared mock.
+  mockCreateInteraction.mockResolvedValue({});
   mockDeleteInteractions.mockClear();
   mockDeleteInteractions.mockResolvedValue({ deleted: 0 });
 
@@ -318,6 +321,104 @@ describe('ImageScroller', () => {
     render(<ImageScroller images={imagesWithDataUri} customerId={CUSTOMER_ID} />);
 
     expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/png;base64,CCCC');
+  });
+
+  describe('image sizing', () => {
+    it('renders the image at full viewport width with a height cap, not the old 60vh box', () => {
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      const img = screen.getByTestId('scroller-image');
+      expect(img).toHaveClass('w-full');
+      expect(img).toHaveClass('object-contain');
+      expect(img).toHaveClass('max-h-[70vh]');
+      expect(img.className).not.toContain('max-h-[60vh]');
+    });
+  });
+
+  describe('image tap zones', () => {
+    it('records a skip and advances when the left tap zone is tapped', async () => {
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        await user.click(screen.getByTestId('image-skip-zone'));
+      });
+
+      expect(mockCreateInteraction).toHaveBeenCalledWith({
+        customer_id: CUSTOMER_ID,
+        image_id: 1,
+        action: 0,
+        view_duration_ms: expect.any(Number),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('scroller-image')).toHaveAttribute(
+          'src',
+          'data:image/jpeg;base64,BBBB',
+        );
+      });
+    });
+
+    it('records a like and advances when the right tap zone is tapped', async () => {
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        await user.click(screen.getByTestId('image-like-zone'));
+      });
+
+      expect(mockCreateInteraction).toHaveBeenCalledWith({
+        customer_id: CUSTOMER_ID,
+        image_id: 1,
+        action: 1,
+        view_duration_ms: expect.any(Number),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('scroller-image')).toHaveAttribute(
+          'src',
+          'data:image/jpeg;base64,BBBB',
+        );
+      });
+    });
+
+    it('keeps the tap zones out of the accessibility tree so they do not duplicate the buttons', () => {
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      // aria-hidden tap zones must not surface as additional Skip/Like buttons.
+      expect(screen.getAllByRole('button', { name: 'Skip' })).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: 'Like' })).toHaveLength(1);
+      expect(screen.getByTestId('image-skip-zone')).toHaveAttribute('aria-hidden', 'true');
+      expect(screen.getByTestId('image-like-zone')).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('disables the tap zones while an interaction is in flight', async () => {
+      let resolveInteraction: () => void;
+      mockCreateInteraction.mockImplementation(
+        () => new Promise<void>((resolve) => { resolveInteraction = resolve; }),
+      );
+
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        await user.click(screen.getByTestId('image-like-zone'));
+      });
+
+      expect(screen.getByTestId('image-skip-zone')).toBeDisabled();
+      expect(screen.getByTestId('image-like-zone')).toBeDisabled();
+
+      await act(async () => {
+        resolveInteraction!();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('scroller-image')).toHaveAttribute(
+          'src',
+          'data:image/jpeg;base64,BBBB',
+        );
+      });
+    });
   });
 
   describe('layout', () => {

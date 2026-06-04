@@ -133,7 +133,7 @@ export async function expectAuthenticatedEntryRendersScroller(page: Page): Promi
   const entryPath = base || '/';
 
   await page.goto(entryPath);
-  await expect(page.getByRole('heading', { name: 'Scroller' })).toBeVisible({
+  await expect(page.getByTestId('scroller-image')).toBeVisible({
     timeout: 30_000,
   });
   const afterEntry = new URL(page.url()).pathname;
@@ -143,7 +143,7 @@ export async function expectAuthenticatedEntryRendersScroller(page: Page): Promi
   // A refresh / direct re-entry must keep the authenticated visitor on the
   // protected page (acceptance criterion for mobile login survivability).
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Scroller' })).toBeVisible({
+  await expect(page.getByTestId('scroller-image')).toBeVisible({
     timeout: 30_000,
   });
   expect(new URL(page.url()).pathname).toBe(appPath('/'));
@@ -187,7 +187,8 @@ export async function loginAndExpectAuthenticated(page: Page): Promise<Authentic
   await bridgeDeploySmokeAuthCookie(page, loginResponse);
 
   // Landing must be the protected scroller entry page, not just "off the login
-  // page": wait for the deployed entry path and confirm the protected heading.
+  // page": wait for the deployed entry path and confirm the protected scroller
+  // image renders.
   await page.waitForURL((url) => url.pathname === appPath('/'));
   expect(new URL(page.url()).pathname).toBe(appPath('/'));
   if (isDeploySmoke()) {
@@ -196,9 +197,9 @@ export async function loginAndExpectAuthenticated(page: Page): Promise<Authentic
   // The protected page is client-rendered, and in CI the browser reaches the
   // deployed app over host.containers.internal, whose latency has been
   // intermittent. The default 5s assertion timeout can lapse before the client
-  // bundle finishes loading and renders the heading, so give it room. (The
+  // bundle finishes loading and renders the image, so give it room. (The
   // landing is a soft navigation, so this does not re-trigger the auth check.)
-  await expect(page.getByRole('heading', { name: 'Scroller' })).toBeVisible({
+  await expect(page.getByTestId('scroller-image')).toBeVisible({
     timeout: 30_000,
   });
 

@@ -55,7 +55,7 @@ test('pre-deploy login check passes with valid credentials', async ({ page }) =>
   // always starts from a fresh, fully-populated queue.
   await deleteCustomerImageInteractions(user.id);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Scroller' })).toBeVisible();
+  await expect(page.getByTestId('scroller-image')).toBeVisible();
 
   const scrollerImage = page.getByTestId('scroller-image');
   await expect(scrollerImage).toBeVisible({ timeout: 30000 });
