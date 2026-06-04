@@ -51,6 +51,34 @@ describe('ImageScroller', () => {
 
     expect(screen.getByText('No more images')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Like' })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Reset my interactions' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the reset button on the continuation-error screen', () => {
+    render(
+      <ImageScroller
+        images={[]}
+        customerId={CUSTOMER_ID}
+        noMoreAvailable={false}
+        continuationErrored
+      />,
+    );
+
+    expect(screen.getByText('More images could not be loaded.')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Reset my interactions' }),
+    ).toBeInTheDocument();
+  });
+
+  it('hides the reset button while more images are loading', () => {
+    render(<ImageScroller images={[]} customerId={CUSTOMER_ID} noMoreAvailable={false} />);
+
+    expect(screen.getByText('Loading more images...')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Reset my interactions' }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows loading state when queue is exhausted but continuation is still expected', async () => {
@@ -340,6 +368,72 @@ describe('ImageScroller', () => {
         expect(screen.getByRole('status')).toHaveTextContent(
           'Could not reset your interactions. Please try again.',
         );
+      });
+    });
+
+    describe('from the no-more-images screen', () => {
+      it('deletes interactions after confirmation and shows the count', async () => {
+        jest.spyOn(window, 'confirm').mockReturnValue(true);
+        mockDeleteInteractions.mockResolvedValueOnce({ deleted: 3 });
+        const user = userEvent.setup();
+        render(<ImageScroller images={[]} customerId={CUSTOMER_ID} />);
+
+        await act(async () => {
+          await user.click(screen.getByRole('button', { name: 'Reset my interactions' }));
+        });
+
+        expect(mockDeleteInteractions).toHaveBeenCalledWith(CUSTOMER_ID);
+        await waitFor(() => {
+          expect(screen.getByRole('status')).toHaveTextContent('Reset complete — removed 3 interactions.');
+        });
+        // Customer stays on the terminal screen after resetting.
+        expect(screen.getByText('No more images')).toBeInTheDocument();
+      });
+
+      it('does not send a delete request when the confirmation is cancelled', async () => {
+        jest.spyOn(window, 'confirm').mockReturnValue(false);
+        const user = userEvent.setup();
+        render(<ImageScroller images={[]} customerId={CUSTOMER_ID} />);
+
+        await act(async () => {
+          await user.click(screen.getByRole('button', { name: 'Reset my interactions' }));
+        });
+
+        expect(mockDeleteInteractions).not.toHaveBeenCalled();
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+
+      it('reports when there were no interactions to reset', async () => {
+        jest.spyOn(window, 'confirm').mockReturnValue(true);
+        mockDeleteInteractions.mockResolvedValueOnce({ deleted: 0 });
+        const user = userEvent.setup();
+        render(<ImageScroller images={[]} customerId={CUSTOMER_ID} />);
+
+        await act(async () => {
+          await user.click(screen.getByRole('button', { name: 'Reset my interactions' }));
+        });
+
+        await waitFor(() => {
+          expect(screen.getByRole('status')).toHaveTextContent('You had no interactions to reset.');
+        });
+      });
+
+      it('shows an error message when the delete fails', async () => {
+        jest.spyOn(window, 'confirm').mockReturnValue(true);
+        jest.spyOn(console, 'error').mockImplementation();
+        mockDeleteInteractions.mockRejectedValueOnce(new Error('boom'));
+        const user = userEvent.setup();
+        render(<ImageScroller images={[]} customerId={CUSTOMER_ID} />);
+
+        await act(async () => {
+          await user.click(screen.getByRole('button', { name: 'Reset my interactions' }));
+        });
+
+        await waitFor(() => {
+          expect(screen.getByRole('status')).toHaveTextContent(
+            'Could not reset your interactions. Please try again.',
+          );
+        });
       });
     });
   });
