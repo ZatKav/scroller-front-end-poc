@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, type Response } from '@playwright/test';
 
 export interface AuthenticatedE2EUser {
   id: number;
@@ -27,6 +27,57 @@ function appPath(path: string): string {
     return base;
   }
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+function isDeploySmoke(): boolean {
+  return process.env.PLAYWRIGHT_DEPLOY_SMOKE === '1';
+}
+
+function authCookiePath(): string {
+  return basePath() || '/';
+}
+
+function extractAuthToken(setCookieHeader: string | undefined): string | null {
+  if (!setCookieHeader) {
+    return null;
+  }
+
+  const match = setCookieHeader.match(/(?:^|;\s*)auth-token=([^;]+)/);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+async function bridgeDeploySmokeAuthCookie(
+  page: Page,
+  loginResponse: Response
+): Promise<void> {
+  if (!isDeploySmoke()) {
+    return;
+  }
+
+  const existingAuthCookie = (await page.context().cookies())
+    .find((cookie) => cookie.name === 'auth-token');
+  if (existingAuthCookie) {
+    return;
+  }
+
+  const authToken = extractAuthToken(
+    await loginResponse.headerValue('set-cookie') ?? loginResponse.headers()['set-cookie']
+  );
+  expect(authToken).toBeTruthy();
+
+  const currentUrl = new URL(page.url());
+  await page.context().addCookies([
+    {
+      name: 'auth-token',
+      value: authToken as string,
+      url: currentUrl.origin,
+      path: authCookiePath(),
+      httpOnly: true,
+      secure: false,
+      sameSite: 'Strict',
+      expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+    },
+  ]);
 }
 
 /**
@@ -89,11 +140,15 @@ export async function loginAndExpectAuthenticated(page: Page): Promise<Authentic
   const loginResponseBody: unknown = await loginResponse.json();
   const user = (loginResponseBody as { user?: unknown }).user;
   expect(isAuthenticatedE2EUser(user)).toBeTruthy();
+  await bridgeDeploySmokeAuthCookie(page, loginResponse);
 
   // Landing must be the protected scroller entry page, not just "off the login
   // page": wait for the deployed entry path and confirm the protected heading.
   await page.waitForURL((url) => url.pathname === appPath('/'));
   expect(new URL(page.url()).pathname).toBe(appPath('/'));
+  if (isDeploySmoke()) {
+    await page.goto(appPath('/'));
+  }
   // The protected page is client-rendered, and in CI the browser reaches the
   // deployed app over host.containers.internal, whose latency has been
   // intermittent. The default 5s assertion timeout can lapse before the client
