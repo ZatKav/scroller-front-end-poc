@@ -300,6 +300,39 @@ describe('ImageScroller', () => {
     expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/png;base64,CCCC');
   });
 
+  describe('layout', () => {
+    it('renders the action buttons above the image-summary and weights readout', () => {
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      const likeButton = screen.getByRole('button', { name: 'Like' });
+      const summary = screen.getByTestId('image-summary');
+      const weights = screen.getByTestId('stack-rank-weights');
+
+      // DOCUMENT_POSITION_FOLLOWING (4) means the argument comes after the node.
+      expect(
+        likeButton.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        likeButton.compareDocumentPosition(weights) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it('renders the image summary inside a preformatted code-style block', () => {
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      const summary = screen.getByTestId('image-summary');
+      expect(summary.tagName).toBe('PRE');
+      expect(summary).toHaveTextContent('Nice house');
+    });
+
+    it('omits the image-summary block but keeps the weights block when image_summary is null', () => {
+      render(<ImageScroller images={[IMAGES[1]]} customerId={CUSTOMER_ID} />);
+
+      expect(screen.queryByTestId('image-summary')).not.toBeInTheDocument();
+      expect(screen.getByTestId('stack-rank-weights')).toBeInTheDocument();
+    });
+  });
+
   describe('reset interactions', () => {
     it('renders the reset button below the action buttons', () => {
       render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);

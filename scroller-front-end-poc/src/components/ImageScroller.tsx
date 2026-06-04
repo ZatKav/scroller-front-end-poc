@@ -151,15 +151,6 @@ export default function ImageScroller({
         alt={currentImage.image_summary || 'Property image'}
         className="max-w-full max-h-[60vh] rounded-lg shadow-md object-contain"
       />
-      {currentImage.image_summary && (
-        <p className="text-sm text-gray-600 max-w-md text-center">{currentImage.image_summary}</p>
-      )}
-      <pre
-        data-testid="stack-rank-weights"
-        className="text-xs text-left text-gray-700 bg-gray-100 rounded-md p-3 max-w-md w-full overflow-x-auto"
-      >
-        {JSON.stringify(stackRankWeights, null, 2)}
-      </pre>
       <div className="flex gap-4">
         <button
           onClick={() => handleAction(0)}
@@ -175,6 +166,22 @@ export default function ImageScroller({
         >
           Like
         </button>
+      </div>
+      <div className="grid grid-cols-2 gap-4 w-full max-w-3xl">
+        {currentImage.image_summary && (
+          <pre
+            data-testid="image-summary"
+            className="text-xs text-left text-gray-700 bg-gray-100 rounded-md p-3 overflow-x-auto whitespace-pre-wrap"
+          >
+            {currentImage.image_summary}
+          </pre>
+        )}
+        <pre
+          data-testid="stack-rank-weights"
+          className="text-xs text-left text-gray-700 bg-gray-100 rounded-md p-3 overflow-x-auto"
+        >
+          {JSON.stringify(stackRankWeights, null, 2)}
+        </pre>
       </div>
       {renderResetControls()}
     </div>
