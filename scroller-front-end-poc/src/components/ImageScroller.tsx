@@ -43,15 +43,17 @@ export default function ImageScroller({
         : 'Loading more images...';
 
       return (
-        <div className="text-center py-12">
+        <div className="flex flex-col items-center gap-6 py-12">
           <p className="text-lg text-gray-500">{emptyStateText}</p>
+          {continuationErrored && renderResetControls()}
         </div>
       );
     }
 
     return (
-      <div className="text-center py-12">
+      <div className="flex flex-col items-center gap-6 py-12">
         <p className="text-lg text-gray-500">No more images</p>
+        {renderResetControls()}
       </div>
     );
   }
@@ -119,6 +121,28 @@ export default function ImageScroller({
     }
   }
 
+  function renderResetControls() {
+    return (
+      <>
+        <button
+          onClick={handleReset}
+          disabled={resetting}
+          className="px-6 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {resetting ? 'Resetting…' : 'Reset my interactions'}
+        </button>
+        {resetMessage && (
+          <p
+            role="status"
+            className={`text-sm ${resetMessage.kind === 'error' ? 'text-red-600' : 'text-gray-600'}`}
+          >
+            {resetMessage.text}
+          </p>
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center gap-6">
       <img
@@ -152,21 +176,7 @@ export default function ImageScroller({
           Like
         </button>
       </div>
-      <button
-        onClick={handleReset}
-        disabled={resetting}
-        className="px-6 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        {resetting ? 'Resetting…' : 'Reset my interactions'}
-      </button>
-      {resetMessage && (
-        <p
-          role="status"
-          className={`text-sm ${resetMessage.kind === 'error' ? 'text-red-600' : 'text-gray-600'}`}
-        >
-          {resetMessage.text}
-        </p>
-      )}
+      {renderResetControls()}
     </div>
   );
 }
