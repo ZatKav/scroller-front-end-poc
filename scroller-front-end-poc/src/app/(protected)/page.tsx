@@ -59,11 +59,14 @@ export default function Home() {
 
   const imageCacheRef = useRef<StackRankImage[]>([]);
   const refillInFlightRef = useRef(false);
-  const noMoreImagesRef = useRef(false);
   const mountedRef = useRef(false);
 
   async function loadMoreImages(limit: number) {
-    if (refillInFlightRef.current || noMoreImagesRef.current) {
+    // Only the in-flight guard gates a refill. We deliberately do not latch a
+    // permanent "no more images" flag: a continuation that returns nothing is
+    // treated as transient, so a later attempt can recover if the backend has
+    // since produced more eligible images (PRO-226).
+    if (refillInFlightRef.current) {
       return;
     }
 
@@ -85,10 +88,9 @@ export default function Home() {
       imageCacheRef.current = mergedImages;
       setImages(mergedImages);
 
-      if (addedCount === 0) {
-        noMoreImagesRef.current = true;
-        setNoMoreImages(true);
-      }
+      // Reflect the latest attempt only: show the terminal message when nothing
+      // new arrived, but clear it as soon as a later attempt brings images in.
+      setNoMoreImages(addedCount === 0);
     } catch {
       if (!mountedRef.current) {
         return;
@@ -110,7 +112,7 @@ export default function Home() {
 
   function handleAdvance(nextIndex: number) {
     const remainingImages = imageCacheRef.current.length - nextIndex;
-    if (windowError !== null || remainingImages > PREFETCH_THRESHOLD || noMoreImagesRef.current) {
+    if (windowError !== null || remainingImages > PREFETCH_THRESHOLD) {
       return;
     }
 
@@ -122,7 +124,7 @@ export default function Home() {
 
     async function initializeQueue() {
       await loadMoreImages(INITIAL_LOAD_LIMIT);
-      if (!mountedRef.current || noMoreImagesRef.current || imageCacheRef.current.length === 0) {
+      if (!mountedRef.current || imageCacheRef.current.length === 0) {
         return;
       }
 

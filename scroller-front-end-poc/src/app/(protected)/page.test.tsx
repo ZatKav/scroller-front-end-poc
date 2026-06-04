@@ -218,6 +218,41 @@ describe('protected scroller page', () => {
     expect(screen.queryByText('No more images')).toBeNull();
   });
 
+  it('recovers and shows new images after a transient empty continuation instead of latching', async () => {
+    // Regression for PRO-226: a continuation that returns no new images must not
+    // permanently latch the terminal state. A later attempt at the prefetch
+    // threshold should fetch and display newly available images.
+    mockFetch
+      .mockResolvedValueOnce(responseWithImages([makeImage(1)]))
+      .mockResolvedValueOnce(responseWithImages([makeImage(2), makeImage(3)]))
+      .mockResolvedValueOnce(responseWithImages([]))
+      .mockResolvedValueOnce(responseWithImages([makeImage(4)]));
+
+    render(<Home />);
+
+    expect(await screen.findByTestId('image-3')).toBeTruthy();
+
+    // Advance to the prefetch threshold so the transient-empty continuation fires.
+    advanceScroller(2);
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+    // Let the empty continuation settle (clears the in-flight guard).
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Advancing again must re-attempt rather than stay stuck on the terminal state.
+    fireEvent.click(screen.getByRole('button', { name: 'Advance' }));
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(4);
+    });
+
+    expect(await screen.findByTestId('image-4')).toBeTruthy();
+    expect(screen.getByTestId('current-image').textContent).toBe('Image 4');
+    expect(screen.queryByText('No more images')).toBeNull();
+  });
+
   it('deduplicates repeated continuation images by image id', async () => {
     mockFetch
       .mockResolvedValueOnce(responseWithImages([makeImage(1)]))
