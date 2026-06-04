@@ -30,6 +30,14 @@ root cause is fixed separately in `scroller-customer-interactions-db`.
   - Added a regression test: after a transient empty continuation, advancing
     again re-attempts the fetch and displays newly available images instead of
     remaining stuck on "No more images".
+- `.woodpecker.yml`:
+  - Fixed the `deploy-main` health check URL. The app is served under the
+    `/scroller` base path (`NEXT_PUBLIC_BASE_PATH`), so the probed bare root
+    `http://host.containers.internal:8410` returned 404 and failed the deploy
+    even though the pod was healthy. Point it at
+    `http://host.containers.internal:8410/scroller/login` (matches the Makefile
+    default, renders without auth). Pre-existing deploy-config bug surfaced while
+    merging this branch; unrelated to the page-level change.
 
 ## Tests
 - Ran: `npx jest` (equivalent to `make test-dashboard-unit`) in `scroller-front-end-poc`.
