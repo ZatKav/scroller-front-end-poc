@@ -136,13 +136,40 @@ export default function ImageScroller({
   }
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      <img
-        data-testid="scroller-image"
-        src={currentImage.image_data!.startsWith('data:') ? currentImage.image_data! : `data:image/jpeg;base64,${currentImage.image_data}`}
-        alt={currentImage.image_summary || 'Property image'}
-        className="max-w-full max-h-[60vh] rounded-lg shadow-md object-contain"
-      />
+    <div className="flex flex-col items-center gap-6 w-full">
+      {/* The image is the dominant element: it fills the available width while
+          object-contain preserves its aspect ratio, and the max-height cap keeps
+          the action buttons visible without scrolling (PRO-233). */}
+      <div className="relative w-full">
+        <img
+          data-testid="scroller-image"
+          src={currentImage.image_data!.startsWith('data:') ? currentImage.image_data! : `data:image/jpeg;base64,${currentImage.image_data}`}
+          alt={currentImage.image_summary || 'Property image'}
+          className="w-full max-h-[70vh] rounded-lg shadow-md object-contain"
+        />
+        {/* Left/right tap zones mirror the Skip/Like buttons for fast thumb
+            interaction. They are aria-hidden and not focusable so they don't
+            duplicate the labelled buttons for keyboard/assistive-tech users
+            (PRO-233). */}
+        <button
+          type="button"
+          data-testid="image-skip-zone"
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={() => handleAction(0)}
+          disabled={submitting}
+          className="absolute inset-y-0 left-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none"
+        />
+        <button
+          type="button"
+          data-testid="image-like-zone"
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={() => handleAction(1)}
+          disabled={submitting}
+          className="absolute inset-y-0 right-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none"
+        />
+      </div>
       <div className="flex gap-4">
         <button
           onClick={() => handleAction(0)}

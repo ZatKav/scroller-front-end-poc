@@ -139,8 +139,7 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Scroller</h1>
+    <main className="min-h-screen flex flex-col items-center bg-gradient-to-br from-blue-50 to-indigo-100 px-2 py-4">
       {error && <p className="text-red-600">{error}</p>}
       {!error && images === null && (
         <p className="text-gray-500">Loading images...</p>
