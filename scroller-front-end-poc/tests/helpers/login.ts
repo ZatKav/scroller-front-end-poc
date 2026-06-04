@@ -94,7 +94,14 @@ export async function loginAndExpectAuthenticated(page: Page): Promise<Authentic
   // page": wait for the deployed entry path and confirm the protected heading.
   await page.waitForURL((url) => url.pathname === appPath('/'));
   expect(new URL(page.url()).pathname).toBe(appPath('/'));
-  await expect(page.getByRole('heading', { name: 'Scroller' })).toBeVisible();
+  // The protected page is client-rendered, and in CI the browser reaches the
+  // deployed app over host.containers.internal, whose latency has been
+  // intermittent. The default 5s assertion timeout can lapse before the client
+  // bundle finishes loading and renders the heading, so give it room. (The
+  // landing is a soft navigation, so this does not re-trigger the auth check.)
+  await expect(page.getByRole('heading', { name: 'Scroller' })).toBeVisible({
+    timeout: 30_000,
+  });
 
   return user as AuthenticatedE2EUser;
 }

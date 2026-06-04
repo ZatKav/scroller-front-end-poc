@@ -29,7 +29,12 @@ export default defineConfig({
       },
   use: {
     baseURL,
-    trace: 'on-first-retry',
+    // Keep a trace and screenshot for any failing test (independent of retries)
+    // so post-deploy smoke failures are debuggable from the stored artifacts.
+    // Nothing is retained for passing runs, which keeps volume and the exposure
+    // of the auth-cookie-bearing trace down.
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   projects: isDeploySmoke
     ? [
