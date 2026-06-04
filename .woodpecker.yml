@@ -122,8 +122,11 @@ steps:
       # so the bare root returns 404. Probe the login page under the base path
       # (matches the Makefile default and renders without auth).
       PODMAN_HEALTHCHECK_URL: http://host.containers.internal:8410/scroller/login
-    depends_on:
-      - build-and-push
+    # No depends_on: a single depends_on switches Woodpecker into DAG mode, which
+    # makes the steps without it (allure-report, store-report-locally) run as
+    # parallel roots BEFORE the smoke produces its trace -- so reports get stored
+    # empty. Sequential mode (definition order) keeps build -> deploy -> smoke ->
+    # report -> store ordering, still gated by when.status below.
     when:
       event: push
       branch: main
@@ -186,8 +189,8 @@ steps:
     environment:
       E2E_LOGIN_USERNAME: jack
       E2E_LOGIN_PASSWORD: jackNgrok2026!
-    depends_on:
-      - deploy-main
+    # No depends_on -- see deploy-main: keep the pipeline sequential so the
+    # report/store steps run after this step and capture its trace.
     when:
       event: push
       branch: main
