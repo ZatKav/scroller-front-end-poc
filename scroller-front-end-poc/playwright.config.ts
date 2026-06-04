@@ -4,6 +4,24 @@ const LOCAL_BASE_URL = 'http://localhost:8410';
 const isDeploySmoke = process.env.PLAYWRIGHT_DEPLOY_SMOKE === '1';
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? LOCAL_BASE_URL;
 
+// The post-deploy smoke reaches the app over http://host.containers.internal,
+// which Chromium does NOT treat as a secure context (unlike localhost). The
+// app's `auth-token` cookie is `Secure` in production builds, so on that origin
+// Chromium drops it and every request looks unauthenticated -> the protected
+// page bounces to /login and the smoke fails. Mark the smoke's base origin as
+// trustworthy so Secure cookies behave exactly as they do for localhost / real
+// HTTPS clients. This is a test-only browser flag; it does not change the app.
+const deploySmokeChromiumArgs = (() => {
+  if (!isDeploySmoke) {
+    return [] as string[];
+  }
+  try {
+    return [`--unsafely-treat-insecure-origin-as-secure=${new URL(baseURL).origin}`];
+  } catch {
+    return [] as string[];
+  }
+})();
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -40,7 +58,10 @@ export default defineConfig({
     ? [
         {
           name: 'chromium',
-          use: { ...devices['Desktop Chrome'] },
+          use: {
+            ...devices['Desktop Chrome'],
+            launchOptions: { args: deploySmokeChromiumArgs },
+          },
         },
       ]
     : [
