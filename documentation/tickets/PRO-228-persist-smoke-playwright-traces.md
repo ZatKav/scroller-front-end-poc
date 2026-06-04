@@ -24,6 +24,17 @@ heading not rendering): the trace's network panel will show whether requests to
     `scroller-front-end-poc/playwright-report/` into
     `$REPORT_DIR/playwright/`, and echo their reports-server URLs. Guarded by
     existence checks so it is a no-op on green runs (no trace produced).
+- `scroller-front-end-poc/tests/helpers/login.ts` (bundled PRO-226 smoke
+  mitigation):
+  - Give the protected-page heading assertion a 30s timeout instead of the 5s
+    default. The post-deploy smoke reaches the app over
+    `host.containers.internal`, whose latency has been intermittent; the
+    client-rendered page can take longer than 5s to load its bundle and render
+    the heading, which is the leading hypothesis for the current smoke failure.
+    The landing is a soft navigation, so the longer wait does not re-trigger the
+    `AuthContext` `/api/auth/me` check. If the trace shows the requests are
+    dropped (not merely slow), the follow-up is a networking-level change
+    (target address / topology) rather than a timeout.
 
 ## Tests
 - Ran: `npm run test:e2e:deploy-smoke` locally against the running pod
