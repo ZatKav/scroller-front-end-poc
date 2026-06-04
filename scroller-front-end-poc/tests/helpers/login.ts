@@ -70,7 +70,7 @@ async function bridgeDeploySmokeAuthCookie(
     {
       name: 'auth-token',
       value: authToken as string,
-      url: currentUrl.origin,
+      domain: currentUrl.hostname,
       path: authCookiePath(),
       httpOnly: true,
       secure: false,
