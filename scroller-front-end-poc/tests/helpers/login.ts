@@ -33,6 +33,19 @@ function isDeploySmoke(): boolean {
   return process.env.PLAYWRIGHT_DEPLOY_SMOKE === '1';
 }
 
+function shouldBridgeDeploySmokeAuthCookie(): boolean {
+  if (!isDeploySmoke()) {
+    return false;
+  }
+
+  try {
+    const baseUrl = new URL(process.env.PLAYWRIGHT_BASE_URL ?? '');
+    return baseUrl.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 function authCookiePath(): string {
   return basePath() || '/';
 }
@@ -50,7 +63,7 @@ async function bridgeDeploySmokeAuthCookie(
   page: Page,
   loginResponse: Response
 ): Promise<void> {
-  if (!isDeploySmoke()) {
+  if (!shouldBridgeDeploySmokeAuthCookie()) {
     return;
   }
 

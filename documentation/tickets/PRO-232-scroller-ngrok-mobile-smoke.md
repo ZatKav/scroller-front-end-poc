@@ -27,6 +27,10 @@ on the protected page and stays there across a refresh.
     the public entry path with a valid session, asserts the protected `Scroller`
     heading renders, that the URL is the entry path (not `/scroller/login`), and
     that a refresh keeps the visitor on the protected page.
+  - Scoped the deploy-smoke cookie bridge to `http:` base URLs only. Public HTTPS
+    ngrok smoke runs now rely on the browser-retained production cookie, while the
+    existing `host.containers.internal` smoke can still bridge the cookie for its
+    insecure host-origin test setup.
 - `scroller-front-end-poc/tests/deploy-login.smoke.spec.ts`:
   - Added the `authenticated direct navigation to the entry path renders the
     scroller` smoke test, which logs in then calls the new helper.
@@ -45,8 +49,8 @@ on the protected page and stays there across a refresh.
 Unchanged. No auth cookie flags were modified; the smoke only asserts/relies on
 the existing `Secure` / `HttpOnly` / `SameSite=strict` / `/scroller` path scope.
 On a real HTTPS ngrok origin the `Secure` cookie is honoured natively, so the
-existing deploy-smoke cookie bridge (used only for the insecure http host origin)
-short-circuits.
+existing deploy-smoke cookie bridge short-circuits and cannot mask a missing
+production cookie.
 
 ## Tests
 - `npm test` (jest unit): 79 passed, 10 suites.
