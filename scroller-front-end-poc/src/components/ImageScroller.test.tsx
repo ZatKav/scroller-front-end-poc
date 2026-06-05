@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ImageScroller from './ImageScroller';
 
@@ -423,6 +423,158 @@ describe('ImageScroller', () => {
           'data:image/jpeg;base64,BBBB',
         );
       });
+    });
+  });
+
+  describe('image swipe gestures', () => {
+    const SWIPE_START = { x: 200, y: 200 };
+
+    // Drive a single-finger horizontal/vertical drag across the image swipe
+    // area. deltaX > 0 swipes right (Like), deltaX < 0 swipes left (Skip).
+    function swipe(deltaX: number, deltaY = 0) {
+      const area = screen.getByTestId('scroller-swipe-area');
+      fireEvent.touchStart(area, {
+        touches: [{ clientX: SWIPE_START.x, clientY: SWIPE_START.y }],
+      });
+      fireEvent.touchEnd(area, {
+        changedTouches: [
+          { clientX: SWIPE_START.x + deltaX, clientY: SWIPE_START.y + deltaY },
+        ],
+      });
+    }
+
+    it('records a like and advances when the image is swiped right', async () => {
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        swipe(120);
+      });
+
+      expect(mockCreateInteraction).toHaveBeenCalledWith({
+        customer_id: CUSTOMER_ID,
+        image_id: 1,
+        action: 1,
+        view_duration_ms: expect.any(Number),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('scroller-image')).toHaveAttribute(
+          'src',
+          'data:image/jpeg;base64,BBBB',
+        );
+      });
+    });
+
+    it('records a skip and advances when the image is swiped left', async () => {
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        swipe(-120);
+      });
+
+      expect(mockCreateInteraction).toHaveBeenCalledWith({
+        customer_id: CUSTOMER_ID,
+        image_id: 1,
+        action: 0,
+        view_duration_ms: expect.any(Number),
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('scroller-image')).toHaveAttribute(
+          'src',
+          'data:image/jpeg;base64,BBBB',
+        );
+      });
+    });
+
+    it('reuses the onAdvance notification for an accepted swipe', async () => {
+      const onAdvance = jest.fn();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} onAdvance={onAdvance} />);
+
+      await act(async () => {
+        swipe(120);
+      });
+
+      await waitFor(() => {
+        expect(onAdvance).toHaveBeenCalledWith(1);
+      });
+    });
+
+    it('ignores a short horizontal drag below the swipe threshold', async () => {
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        swipe(20);
+      });
+
+      expect(mockCreateInteraction).not.toHaveBeenCalled();
+      expect(screen.getByTestId('scroller-image')).toHaveAttribute(
+        'src',
+        'data:image/jpeg;base64,AAAA',
+      );
+    });
+
+    it('ignores a mostly-vertical drag so page scrolling is not consumed', async () => {
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        // Long gesture, but vertical travel dominates the horizontal travel.
+        swipe(70, 200);
+      });
+
+      expect(mockCreateInteraction).not.toHaveBeenCalled();
+      expect(screen.getByTestId('scroller-image')).toHaveAttribute(
+        'src',
+        'data:image/jpeg;base64,AAAA',
+      );
+    });
+
+    it('prevents the default action on a consumed swipe to suppress the ghost click', () => {
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      const area = screen.getByTestId('scroller-swipe-area');
+      fireEvent.touchStart(area, {
+        touches: [{ clientX: SWIPE_START.x, clientY: SWIPE_START.y }],
+      });
+      const defaultPrevented = !fireEvent.touchEnd(area, {
+        changedTouches: [{ clientX: SWIPE_START.x + 120, clientY: SWIPE_START.y }],
+      });
+
+      expect(defaultPrevented).toBe(true);
+    });
+
+    it('does not submit a second interaction when a swipe lands mid-flight', async () => {
+      let resolveInteraction: () => void;
+      mockCreateInteraction.mockImplementation(
+        () => new Promise<void>((resolve) => { resolveInteraction = resolve; }),
+      );
+      const onAdvance = jest.fn();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} onAdvance={onAdvance} />);
+
+      // First swipe starts an interaction that has not resolved yet.
+      await act(async () => {
+        swipe(120);
+      });
+      expect(mockCreateInteraction).toHaveBeenCalledTimes(1);
+
+      // A second swipe before the first resolves must be dropped by the
+      // in-flight guard: no duplicate POST and no second advance.
+      await act(async () => {
+        swipe(120);
+      });
+      expect(mockCreateInteraction).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        resolveInteraction!();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('scroller-image')).toHaveAttribute(
+          'src',
+          'data:image/jpeg;base64,BBBB',
+        );
+      });
+      expect(onAdvance).toHaveBeenCalledTimes(1);
     });
   });
 

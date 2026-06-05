@@ -88,3 +88,88 @@ test('pre-deploy login check passes with valid credentials', async ({ page }) =>
   expect(Number.isInteger(skipInteraction.view_duration_ms)).toBeTruthy();
   expect(skipInteraction.image_id).not.toBe(likeInteraction.image_id);
 });
+
+// Dispatch a single-finger horizontal swipe across the scroller image by firing
+// real touchstart/touchend events in the page. The component reads the start and
+// changed-touch coordinates, so a start + end pair is enough to drive the
+// gesture. Touch event/constructor support is reliable in Chromium, so the
+// swipe regression is pinned to that project (see test.skip below).
+async function swipeScrollerImage(
+  page: import('@playwright/test').Page,
+  deltaX: number,
+): Promise<void> {
+  await page.getByTestId('scroller-swipe-area').evaluate((element, dx) => {
+    const rect = element.getBoundingClientRect();
+    const startX = rect.left + rect.width / 2;
+    const startY = rect.top + rect.height / 2;
+
+    const makeTouch = (clientX: number) =>
+      new Touch({ identifier: 1, target: element, clientX, clientY: startY });
+
+    element.dispatchEvent(
+      new TouchEvent('touchstart', {
+        bubbles: true,
+        cancelable: true,
+        touches: [makeTouch(startX)],
+        changedTouches: [makeTouch(startX)],
+      }),
+    );
+    element.dispatchEvent(
+      new TouchEvent('touchend', {
+        bubbles: true,
+        cancelable: true,
+        touches: [],
+        changedTouches: [makeTouch(startX + dx)],
+      }),
+    );
+  }, deltaX);
+}
+
+test('mobile swipes record persisted Like and Skip interactions', async ({ page, browserName }) => {
+  // Touch event synthesis is exercised against Chromium, which mirrors the
+  // mobile WebView/Chrome the scroller targets; webkit/firefox touch-constructor
+  // support is inconsistent across CI images.
+  test.skip(browserName !== 'chromium', 'Swipe regression runs on Chromium only.');
+  test.setTimeout(60000);
+
+  const user = await loginAndExpectAuthenticated(page);
+
+  // Reset first so the queue is fully populated regardless of prior runs, exactly
+  // like the button-based smoke above.
+  await deleteCustomerImageInteractions(user.id);
+  await page.reload();
+
+  const scrollerImage = page.getByTestId('scroller-image');
+  await expect(scrollerImage).toBeVisible({ timeout: 30000 });
+
+  const existingInteractions = await getCustomerImageInteractions(user.id);
+  const knownIds = new Set(existingInteractions.map((interaction) => interaction.id));
+
+  // Swipe right -> Like.
+  await swipeScrollerImage(page, 160);
+  const likeInteraction = await waitForNewInteraction({
+    customerId: user.id,
+    expectedAction: 1,
+    knownIds,
+  });
+  knownIds.add(likeInteraction.id);
+
+  expect(likeInteraction.action).toBe(1);
+  expect(likeInteraction.view_duration_ms).not.toBeNull();
+  expect(Number.isInteger(likeInteraction.view_duration_ms)).toBeTruthy();
+
+  await expect(scrollerImage).toBeVisible({ timeout: 30000 });
+
+  // Swipe left -> Skip, on the next image.
+  await swipeScrollerImage(page, -160);
+  const skipInteraction = await waitForNewInteraction({
+    customerId: user.id,
+    expectedAction: 0,
+    knownIds,
+  });
+
+  expect(skipInteraction.action).toBe(0);
+  expect(skipInteraction.view_duration_ms).not.toBeNull();
+  expect(Number.isInteger(skipInteraction.view_duration_ms)).toBeTruthy();
+  expect(skipInteraction.image_id).not.toBe(likeInteraction.image_id);
+});
