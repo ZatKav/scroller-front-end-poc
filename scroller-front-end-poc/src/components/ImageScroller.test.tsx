@@ -64,7 +64,8 @@ describe('ImageScroller', () => {
     const img = screen.getByRole('img');
     expect(img).toHaveAttribute('src', 'data:image/jpeg;base64,AAAA');
     expect(img).toHaveAttribute('alt', 'Nice house');
-    expect(screen.getByText('Nice house')).toBeInTheDocument();
+    // The summary text lives behind the Debug toggle (off by default), so it is
+    // not visible on first render — see the 'debug toggle' suite (PRO-234).
     expect(screen.getByRole('button', { name: 'Like' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument();
   });
@@ -422,8 +423,10 @@ describe('ImageScroller', () => {
   });
 
   describe('layout', () => {
-    it('renders the action buttons above the image-summary and weights readout', () => {
+    it('renders the action buttons above the image-summary and weights readout', async () => {
+      const user = userEvent.setup();
       render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+      await user.click(screen.getByTestId('debug-toggle'));
 
       const likeButton = screen.getByRole('button', { name: 'Like' });
       const summary = screen.getByTestId('image-summary');
@@ -438,18 +441,67 @@ describe('ImageScroller', () => {
       ).toBeTruthy();
     });
 
-    it('renders the image summary inside a preformatted code-style block', () => {
+    it('renders the image summary inside a preformatted code-style block', async () => {
+      const user = userEvent.setup();
       render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+      await user.click(screen.getByTestId('debug-toggle'));
 
       const summary = screen.getByTestId('image-summary');
       expect(summary.tagName).toBe('PRE');
       expect(summary).toHaveTextContent('Nice house');
     });
 
-    it('omits the image-summary block but keeps the weights block when image_summary is null', () => {
+    it('omits the image-summary block but keeps the weights block when image_summary is null', async () => {
+      const user = userEvent.setup();
       render(<ImageScroller images={[IMAGES[1]]} customerId={CUSTOMER_ID} />);
+      await user.click(screen.getByTestId('debug-toggle'));
 
       expect(screen.queryByTestId('image-summary')).not.toBeInTheDocument();
+      expect(screen.getByTestId('stack-rank-weights')).toBeInTheDocument();
+    });
+  });
+
+  describe('debug toggle', () => {
+    it('hides the summary and weights by default with the checkbox unticked', () => {
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      const toggle = screen.getByTestId('debug-toggle');
+      expect(toggle).not.toBeChecked();
+      expect(screen.queryByTestId('image-summary')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('stack-rank-weights')).not.toBeInTheDocument();
+    });
+
+    it('reveals the summary and weights when ticked and hides them again when unticked', async () => {
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await user.click(screen.getByTestId('debug-toggle'));
+      expect(screen.getByTestId('image-summary')).toBeInTheDocument();
+      expect(screen.getByTestId('stack-rank-weights')).toBeInTheDocument();
+
+      await user.click(screen.getByTestId('debug-toggle'));
+      expect(screen.queryByTestId('image-summary')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('stack-rank-weights')).not.toBeInTheDocument();
+    });
+
+    it('keeps the debug preference when advancing to the next image', async () => {
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await user.click(screen.getByTestId('debug-toggle'));
+      expect(screen.getByTestId('image-summary')).toBeInTheDocument();
+
+      await act(async () => {
+        await user.click(screen.getByRole('button', { name: 'Like' }));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('scroller-image')).toHaveAttribute(
+          'src',
+          'data:image/jpeg;base64,BBBB',
+        );
+      });
+      expect(screen.getByTestId('debug-toggle')).toBeChecked();
       expect(screen.getByTestId('stack-rank-weights')).toBeInTheDocument();
     });
   });
@@ -596,7 +648,8 @@ describe('ImageScroller', () => {
     });
   });
 
-  it('renders the stack-rank weights as raw JSON under the image', () => {
+  it('renders the stack-rank weights as raw JSON under the image', async () => {
+    const user = userEvent.setup();
     const scoredImages = [
       {
         id: 1,
@@ -611,6 +664,7 @@ describe('ImageScroller', () => {
     render(
       <ImageScroller images={scoredImages} customerId={CUSTOMER_ID} profileWeights={profileWeights} />,
     );
+    await user.click(screen.getByTestId('debug-toggle'));
 
     const weightsBlock = screen.getByTestId('stack-rank-weights');
     const parsed = JSON.parse(weightsBlock.textContent ?? '');
@@ -622,8 +676,10 @@ describe('ImageScroller', () => {
     expect(screen.getByText('Nice house')).toBeInTheDocument();
   });
 
-  it('renders an empty weights object for a cold-start customer with no scores', () => {
+  it('renders an empty weights object for a cold-start customer with no scores', async () => {
+    const user = userEvent.setup();
     render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+    await user.click(screen.getByTestId('debug-toggle'));
 
     const weightsBlock = screen.getByTestId('stack-rank-weights');
     const parsed = JSON.parse(weightsBlock.textContent ?? '');
