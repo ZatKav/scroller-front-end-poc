@@ -31,6 +31,10 @@ export default function ImageScroller({
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  // Debug toggle for the per-image summary and stack-rank weights. Off by
+  // default so the large JSON blocks don't dominate the mobile view; the
+  // preference is session-only and persists as the user advances (PRO-234).
+  const [debug, setDebug] = useState(false);
 
   useEffect(() => {
     setImageShownAtMs(Date.now());
@@ -186,22 +190,36 @@ export default function ImageScroller({
           Like
         </button>
       </div>
-      <div className="grid grid-cols-2 gap-4 w-full max-w-3xl">
-        {currentImage.image_summary && (
+      {/* Debug toggle: hides the summary/weights by default so they don't clutter
+          the mobile view, while staying a real, focusable control (PRO-234). */}
+      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          data-testid="debug-toggle"
+          checked={debug}
+          onChange={(event) => setDebug(event.target.checked)}
+          className="h-4 w-4"
+        />
+        Debug
+      </label>
+      {debug && (
+        <div className="grid grid-cols-2 gap-4 w-full max-w-3xl">
+          {currentImage.image_summary && (
+            <pre
+              data-testid="image-summary"
+              className="text-xs text-left text-gray-700 bg-gray-100 rounded-md p-3 overflow-x-auto whitespace-pre-wrap"
+            >
+              {currentImage.image_summary}
+            </pre>
+          )}
           <pre
-            data-testid="image-summary"
-            className="text-xs text-left text-gray-700 bg-gray-100 rounded-md p-3 overflow-x-auto whitespace-pre-wrap"
+            data-testid="stack-rank-weights"
+            className="text-xs text-left text-gray-700 bg-gray-100 rounded-md p-3 overflow-x-auto"
           >
-            {currentImage.image_summary}
+            {JSON.stringify(stackRankWeights, null, 2)}
           </pre>
-        )}
-        <pre
-          data-testid="stack-rank-weights"
-          className="text-xs text-left text-gray-700 bg-gray-100 rounded-md p-3 overflow-x-auto"
-        >
-          {JSON.stringify(stackRankWeights, null, 2)}
-        </pre>
-      </div>
+        </div>
+      )}
       {renderResetControls()}
     </div>
   );
