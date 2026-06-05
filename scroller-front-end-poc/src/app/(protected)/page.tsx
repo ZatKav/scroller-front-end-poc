@@ -139,7 +139,7 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="min-h-[100dvh] flex flex-col items-center bg-gradient-to-br from-blue-50 to-indigo-100 px-2 py-4 mobile-landscape:p-0">
+    <main className="min-h-[100dvh] flex flex-col items-center bg-gradient-to-br from-blue-50 to-indigo-100 pt-[max(1rem,env(safe-area-inset-top))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(0.5rem,env(safe-area-inset-left))] mobile-landscape:pt-[env(safe-area-inset-top)] mobile-landscape:pr-[env(safe-area-inset-right)] mobile-landscape:pb-[env(safe-area-inset-bottom)] mobile-landscape:pl-[env(safe-area-inset-left)]">
       {error && <p className="text-red-600">{error}</p>}
       {!error && images === null && (
         <p className="text-gray-500">Loading images...</p>
