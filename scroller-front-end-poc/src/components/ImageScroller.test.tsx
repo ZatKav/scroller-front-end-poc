@@ -325,15 +325,16 @@ describe('ImageScroller', () => {
   });
 
   describe('image sizing', () => {
-    it('caps the image height with dynamic viewport units and expands it in mobile landscape', () => {
+    it('caps the image height with dynamic viewport units in the normal view', () => {
       render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
 
       const img = screen.getByTestId('scroller-image');
       expect(img).toHaveClass('w-full');
       expect(img).toHaveClass('object-contain');
-      // dvh tracks the visible viewport as the address bar collapses (PRO-235).
+      // dvh tracks the visible viewport as the address bar collapses (PRO-235);
+      // the full-viewport size is applied only in the immersive view (PRO-239).
       expect(img).toHaveClass('max-h-[70dvh]');
-      expect(img).toHaveClass('mobile-landscape:max-h-[100dvh]');
+      expect(img.className).not.toContain('max-h-[100dvh]');
       // The old fixed-vh caps are gone.
       expect(img.className).not.toContain('max-h-[70vh]');
       expect(img.className).not.toContain('max-h-[60vh]');
@@ -615,20 +616,17 @@ describe('ImageScroller', () => {
       expect(likeZone).toHaveAttribute('tabindex', '0');
     });
 
-    it('hides the Skip/Like, Debug and Reset controls behind the mobile-landscape utility', () => {
+    it('hides the Skip/Like, Debug and Reset controls and expands the image in the immersive view', () => {
       setMobileLandscape(true);
       render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
 
-      // The visible buttons row, debug toggle and reset block are removed from
-      // view by CSS so the image fills the viewport (PRO-235). Query by text so
-      // we match the visible buttons, not the aria-labelled tap zones.
-      expect(screen.getByText('Skip').closest('div')).toHaveClass('mobile-landscape:hidden');
-      expect(screen.getByTestId('debug-toggle').closest('label')).toHaveClass(
-        'mobile-landscape:hidden',
-      );
-      expect(screen.getByText('Reset my interactions').closest('div')).toHaveClass(
-        'mobile-landscape:hidden',
-      );
+      // In the immersive view the visible buttons row, debug toggle and reset
+      // block are removed and the image fills the viewport (PRO-235, PRO-239).
+      // Query by text so we match the visible buttons, not the tap zones.
+      expect(screen.getByText('Skip').closest('div')).toHaveClass('hidden');
+      expect(screen.getByTestId('debug-toggle').closest('label')).toHaveClass('hidden');
+      expect(screen.getByText('Reset my interactions').closest('div')).toHaveClass('hidden');
+      expect(screen.getByTestId('scroller-image')).toHaveClass('max-h-[100dvh]');
     });
 
     it('records a skip via the tap zone when the buttons are hidden in landscape', async () => {
@@ -682,7 +680,7 @@ describe('ImageScroller', () => {
     });
   });
 
-  describe('fullscreen button (PRO-238)', () => {
+  describe('fullscreen button and immersive view (PRO-238, PRO-239)', () => {
     const originalMatchMedia = window.matchMedia;
     let orientationListeners: Array<(event: { matches: boolean }) => void>;
     let portrait: boolean;
@@ -746,6 +744,16 @@ describe('ImageScroller', () => {
       });
     }
 
+    // Simulate entering/leaving browser fullscreen: flip document.fullscreenElement
+    // and fire the fullscreenchange event the component listens to. Call after
+    // render so the listener is attached.
+    function setFullscreen(active: boolean) {
+      fullscreenElement = active ? document.documentElement : null;
+      act(() => {
+        document.dispatchEvent(new Event('fullscreenchange'));
+      });
+    }
+
     afterEach(() => {
       window.matchMedia = originalMatchMedia;
       delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen;
@@ -754,22 +762,13 @@ describe('ImageScroller', () => {
       delete (document as unknown as { fullscreenEnabled?: unknown }).fullscreenEnabled;
     });
 
-    it('shows the button in portrait on a Fullscreen-capable browser', () => {
-      installOrientation(true);
+    it('shows the button in landscape too, not only portrait (toggle available anywhere)', () => {
+      installOrientation(false); // landscape
       setFullscreenSupported(true);
       installFullscreenApi();
       render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
 
       expect(screen.getByTestId('fullscreen-button')).toBeInTheDocument();
-    });
-
-    it('hides the button in landscape', () => {
-      installOrientation(false);
-      setFullscreenSupported(true);
-      installFullscreenApi();
-      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
-
-      expect(screen.queryByTestId('fullscreen-button')).not.toBeInTheDocument();
     });
 
     it('does not render the button where the Fullscreen API is unsupported', () => {
@@ -787,12 +786,64 @@ describe('ImageScroller', () => {
       const user = userEvent.setup();
       render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
 
+      const button = screen.getByTestId('fullscreen-button');
+      expect(button).toHaveAttribute('aria-label', 'Enter fullscreen');
       await act(async () => {
-        await user.click(screen.getByTestId('fullscreen-button'));
+        await user.click(button);
       });
 
       expect(requestFullscreenMock).toHaveBeenCalledTimes(1);
       expect(mockCreateInteraction).not.toHaveBeenCalled();
+    });
+
+    it('toggles back out when tapped while fullscreen, showing an exit label', async () => {
+      installOrientation(true);
+      setFullscreenSupported(true);
+      installFullscreenApi();
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      setFullscreen(true);
+      const button = screen.getByTestId('fullscreen-button');
+      expect(button).toHaveAttribute('aria-label', 'Exit fullscreen');
+
+      await act(async () => {
+        await user.click(button);
+      });
+
+      expect(exitFullscreenMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the immersive view when fullscreen on a non-mobile-landscape viewport', () => {
+      installOrientation(true); // tablet/desktop portrait — not mobile landscape
+      setFullscreenSupported(true);
+      installFullscreenApi();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      // Normal view before fullscreen.
+      expect(screen.getByTestId('scroller-image')).toHaveClass('max-h-[70dvh]');
+      expect(screen.getByText('Skip').closest('div')).not.toHaveClass('hidden');
+
+      setFullscreen(true);
+
+      // Immersive once fullscreen: image fills, controls hidden, toggle stays.
+      expect(screen.getByTestId('scroller-image')).toHaveClass('max-h-[100dvh]');
+      expect(screen.getByText('Skip').closest('div')).toHaveClass('hidden');
+      expect(screen.getByTestId('fullscreen-button')).toBeInTheDocument();
+    });
+
+    it('restores the normal view when fullscreen is exited (e.g. Esc or refresh)', () => {
+      installOrientation(true);
+      setFullscreenSupported(true);
+      installFullscreenApi();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      setFullscreen(true);
+      expect(screen.getByTestId('scroller-image')).toHaveClass('max-h-[100dvh]');
+
+      setFullscreen(false);
+      expect(screen.getByTestId('scroller-image')).toHaveClass('max-h-[70dvh]');
+      expect(screen.getByText('Skip').closest('div')).not.toHaveClass('hidden');
     });
 
     it('exits fullscreen when the device rotates back to portrait', () => {

@@ -6,7 +6,7 @@ import type {
   StackRankProfileWeights,
 } from '@/types/scroller-customer-interactions-db';
 import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
-import { Maximize } from 'lucide-react';
+import { Maximize, Minimize } from 'lucide-react';
 
 // Horizontal swipe gesture tuning for the image area (PRO-236). A swipe only
 // counts as a Skip/Like when it travels at least SWIPE_MIN_DISTANCE_PX
@@ -17,17 +17,16 @@ import { Maximize } from 'lucide-react';
 const SWIPE_MIN_DISTANCE_PX = 60;
 const SWIPE_HORIZONTAL_RATIO = 1.5;
 
-// Mobile landscape only: landscape orientation with a short viewport. The
-// max-height guard keeps tall desktop landscape out, so the desktop layout is
-// unchanged. Kept in sync with the `mobile-landscape` screen in
-// tailwind.config.js, which drives the CSS hiding of the controls (PRO-235).
+// Mobile landscape: landscape orientation with a short viewport (phones). The
+// max-height guard keeps tall tablet/desktop landscape out. This is one of the
+// two triggers of the immersive view; browser fullscreen is the other (PRO-239).
+// Kept in sync with the `mobile-landscape` screen in tailwind.config.js.
 const MOBILE_LANDSCAPE_QUERY = '(orientation: landscape) and (max-height: 600px)';
 
-// Observe whether we are in mobile landscape. CSS hides the visible Skip/Like,
-// Debug and Reset controls there, but CSS cannot toggle aria-hidden/tabIndex, so
-// the orientation is tracked at runtime to promote the tap zones to real,
-// labelled, focusable controls when the buttons are gone (PRO-235). No Fullscreen
-// API is used: dvh sizing reclaims the address-bar space instead.
+// Observe whether we are in mobile landscape. It feeds the `immersive` signal,
+// which hides the Skip/Like, Debug and Reset controls and promotes the tap zones
+// to real, labelled, focusable controls. dvh sizing reclaims the address-bar
+// space for phones that cannot or do not enter fullscreen (PRO-235).
 function useIsMobileLandscape(): boolean {
   const [isMobileLandscape, setIsMobileLandscape] = useState(false);
 
@@ -53,14 +52,11 @@ function useIsMobileLandscape(): boolean {
   return isMobileLandscape;
 }
 
-// Fullscreen button (PRO-238). In a normal browser tab the URL bar can only be
-// removed by the Fullscreen API, which requires a user gesture — so this is an
-// explicit button, never automatic, keeping the PRO-235 decision (no
-// auto-fullscreen on rotation) intact. The button shows only in portrait on a
-// Fullscreen-capable browser: the user taps it, rotates to landscape for the
-// bar-free view (the button is gone there), and rotating back to portrait exits
-// fullscreen. iPhone Safari has no element Fullscreen API, so the button is
-// feature-detected away there.
+// PORTRAIT_QUERY drives the rotate-back-to-portrait exit on phones: returning to
+// portrait leaves fullscreen so the normal, controls-bearing view comes back
+// (PRO-238). The fullscreen button and the immersive layout are keyed off
+// fullscreen state, not orientation, so they behave the same on tablet and
+// desktop (PRO-239).
 const PORTRAIT_QUERY = '(orientation: portrait)';
 
 // Minimal typing for the still-prefixed WebKit Fullscreen API (older Android
@@ -167,6 +163,31 @@ function useFullscreenSupported(): boolean {
   return supported;
 }
 
+// Track browser fullscreen so the immersive layout follows it on every capable
+// device — this is how tablet/desktop get the immersive view, and why a refresh
+// (which drops fullscreen) returns to the normal view with no persisted setting
+// (PRO-239). Resolved in an effect so SSR/first render shows the normal view.
+function useIsFullscreen(): boolean {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const update = () => setIsFullscreen(getFullscreenElement() !== null);
+    update();
+
+    document.addEventListener('fullscreenchange', update);
+    document.addEventListener('webkitfullscreenchange', update);
+    return () => {
+      document.removeEventListener('fullscreenchange', update);
+      document.removeEventListener('webkitfullscreenchange', update);
+    };
+  }, []);
+
+  return isFullscreen;
+}
+
 interface ImageScrollerProps {
   images: StackRankImage[];
   customerId: number;
@@ -198,6 +219,12 @@ export default function ImageScroller({
   const isMobileLandscape = useIsMobileLandscape();
   const isPortrait = useIsPortrait();
   const fullscreenSupported = useFullscreenSupported();
+  const isFullscreen = useIsFullscreen();
+  // The immersive view (full-viewport image, controls hidden, tap zones promoted)
+  // is shown for phones in short landscape (PRO-235) OR whenever the page is in
+  // browser fullscreen — the latter is how tablet/desktop opt in via the toggle
+  // (PRO-239).
+  const immersive = isMobileLandscape || isFullscreen;
 
   // Synchronous in-flight guard shared by every action entry point (buttons, tap
   // zones, swipes). The `submitting` state drives the disabled UI, but it updates
@@ -214,10 +241,10 @@ export default function ImageScroller({
     setImageShownAtMs(Date.now());
   }, [currentIndex]);
 
-  // Rotating back to portrait leaves fullscreen so the normal, button-bearing
-  // view returns; exiting needs no user gesture, and only entering landscape is
-  // left untouched so the PRO-235 "no Fullscreen on landscape" behaviour holds
-  // (PRO-238).
+  // Rotating back to portrait leaves fullscreen so the normal, controls-bearing
+  // view returns on phones; exiting needs no user gesture. Only entering portrait
+  // acts here, so the PRO-235 "no Fullscreen on entering landscape" behaviour
+  // holds (PRO-238).
   useEffect(() => {
     if (isPortrait && getFullscreenElement()) {
       exitPageFullscreen();
@@ -377,9 +404,9 @@ export default function ImageScroller({
     <div className="flex flex-col items-center gap-6 w-full">
       {/* The image is the dominant element: it fills the available width while
           object-contain preserves its aspect ratio. The height cap uses dynamic
-          viewport units (dvh) so the image grows as the browser collapses the
-          address bar, and in mobile landscape it expands to the full viewport
-          because the action controls are hidden there (PRO-233, PRO-235). */}
+          viewport units (dvh); in the immersive view (phone short-landscape or
+          browser fullscreen) it expands to the full viewport because the action
+          controls are hidden there (PRO-233, PRO-235, PRO-239). */}
       <div
         className="relative w-full"
         data-testid="scroller-swipe-area"
@@ -390,57 +417,67 @@ export default function ImageScroller({
           data-testid="scroller-image"
           src={currentImage.image_data!.startsWith('data:') ? currentImage.image_data! : `data:image/jpeg;base64,${currentImage.image_data}`}
           alt={currentImage.image_summary || 'Property image'}
-          className="w-full max-h-[70dvh] mobile-landscape:max-h-[100dvh] rounded-lg shadow-md object-contain"
+          className={`w-full ${immersive ? 'max-h-[100dvh]' : 'max-h-[70dvh]'} rounded-lg shadow-md object-contain`}
         />
         {/* Left/right tap zones mirror the Skip/Like buttons for fast thumb
-            interaction. In portrait/desktop the labelled buttons are visible, so
+            interaction. In the normal view the labelled buttons are visible, so
             the zones stay aria-hidden and unfocusable to avoid duplicating them
-            for keyboard/assistive-tech users (PRO-233). In mobile landscape the
+            for keyboard/assistive-tech users (PRO-233). In the immersive view the
             buttons are hidden, so the zones become the accessible, labelled,
             focusable Skip/Like controls so those users keep both actions
-            (PRO-235). */}
+            (PRO-235, PRO-239). */}
         <button
           type="button"
           data-testid="image-skip-zone"
-          aria-hidden={isMobileLandscape ? undefined : true}
-          aria-label={isMobileLandscape ? 'Skip' : undefined}
-          tabIndex={isMobileLandscape ? 0 : -1}
+          aria-hidden={immersive ? undefined : true}
+          aria-label={immersive ? 'Skip' : undefined}
+          tabIndex={immersive ? 0 : -1}
           onClick={() => handleAction(0)}
           disabled={submitting}
-          className={`absolute inset-y-0 left-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed ${isMobileLandscape ? 'focus:outline focus:outline-2 focus:outline-blue-500' : 'focus:outline-none'}`}
+          className={`absolute inset-y-0 left-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed ${immersive ? 'focus:outline focus:outline-2 focus:outline-blue-500' : 'focus:outline-none'}`}
         />
         <button
           type="button"
           data-testid="image-like-zone"
-          aria-hidden={isMobileLandscape ? undefined : true}
-          aria-label={isMobileLandscape ? 'Like' : undefined}
-          tabIndex={isMobileLandscape ? 0 : -1}
+          aria-hidden={immersive ? undefined : true}
+          aria-label={immersive ? 'Like' : undefined}
+          tabIndex={immersive ? 0 : -1}
           onClick={() => handleAction(1)}
           disabled={submitting}
-          className={`absolute inset-y-0 right-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed ${isMobileLandscape ? 'focus:outline focus:outline-2 focus:outline-blue-500' : 'focus:outline-none'}`}
+          className={`absolute inset-y-0 right-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed ${immersive ? 'focus:outline focus:outline-2 focus:outline-blue-500' : 'focus:outline-none'}`}
         />
-        {/* Portrait-only fullscreen entry. Sits above the Skip/Like tap zones
-            (z-10) and stops the tap from also hitting the Like zone underneath.
-            Hidden in landscape and where the Fullscreen API is unsupported
-            (iPhone Safari) (PRO-238). */}
-        {fullscreenSupported && isPortrait && (
+        {/* Fullscreen toggle. Shown on any Fullscreen-capable browser (hidden on
+            iPhone Safari, which lacks the element Fullscreen API). It is the entry
+            point to the immersive view on tablet/desktop and stays visible while
+            immersive so it doubles as the exit; sits above the Skip/Like tap zones
+            (z-10) and stops the tap from also hitting the Like zone (PRO-238,
+            PRO-239). */}
+        {fullscreenSupported && (
           <button
             type="button"
             data-testid="fullscreen-button"
-            aria-label="Enter fullscreen"
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
             onClick={(event) => {
               event.stopPropagation();
-              requestPageFullscreen();
+              if (isFullscreen) {
+                exitPageFullscreen();
+              } else {
+                requestPageFullscreen();
+              }
             }}
             className="absolute top-2 right-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60 focus:outline focus:outline-2 focus:outline-blue-500"
           >
-            <Maximize className="h-5 w-5" aria-hidden="true" />
+            {isFullscreen ? (
+              <Minimize className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <Maximize className="h-5 w-5" aria-hidden="true" />
+            )}
           </button>
         )}
       </div>
-      {/* Visible action buttons: hidden in mobile landscape so the image fills
-          the viewport; the tap zones take over there (PRO-235). */}
-      <div className="flex gap-4 mobile-landscape:hidden">
+      {/* Visible action buttons: hidden in the immersive view so the image fills
+          the viewport; the tap zones take over there (PRO-235, PRO-239). */}
+      <div className={`flex gap-4 ${immersive ? 'hidden' : ''}`}>
         <button
           onClick={() => handleAction(0)}
           disabled={submitting}
@@ -458,8 +495,9 @@ export default function ImageScroller({
       </div>
       {/* Debug toggle: hides the summary/weights by default so they don't clutter
           the mobile view, while staying a real, focusable control (PRO-234). Also
-          hidden in mobile landscape so the image can fill the viewport (PRO-235). */}
-      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none mobile-landscape:hidden">
+          hidden in the immersive view so the image can fill the viewport
+          (PRO-235, PRO-239). */}
+      <label className={`flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none ${immersive ? 'hidden' : ''}`}>
         <input
           type="checkbox"
           data-testid="debug-toggle"
@@ -470,7 +508,7 @@ export default function ImageScroller({
         Debug
       </label>
       {debug && (
-        <div className="grid grid-cols-2 gap-4 w-full max-w-3xl mobile-landscape:hidden">
+        <div className={`grid grid-cols-2 gap-4 w-full max-w-3xl ${immersive ? 'hidden' : ''}`}>
           {currentImage.image_summary && (
             <pre
               data-testid="image-summary"
@@ -487,9 +525,9 @@ export default function ImageScroller({
           </pre>
         </div>
       )}
-      {/* Reset stays available in portrait/desktop, but is hidden in mobile
-          landscape so the image owns the viewport (PRO-235). */}
-      <div className="flex flex-col items-center gap-6 mobile-landscape:hidden">
+      {/* Reset stays available in the normal view, but is hidden in the immersive
+          view so the image owns the viewport (PRO-235, PRO-239). */}
+      <div className={`flex flex-col items-center gap-6 ${immersive ? 'hidden' : ''}`}>
         {renderResetControls()}
       </div>
     </div>
