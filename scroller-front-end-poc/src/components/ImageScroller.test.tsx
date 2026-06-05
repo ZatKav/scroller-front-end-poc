@@ -682,6 +682,134 @@ describe('ImageScroller', () => {
     });
   });
 
+  describe('fullscreen button (PRO-238)', () => {
+    const originalMatchMedia = window.matchMedia;
+    let orientationListeners: Array<(event: { matches: boolean }) => void>;
+    let portrait: boolean;
+    let requestFullscreenMock: jest.Mock;
+    let exitFullscreenMock: jest.Mock;
+    let fullscreenElement: Element | null;
+
+    // matchMedia mock that answers per query (portrait vs landscape) and lets a
+    // test fire an orientation change, so the rotate-to-portrait auto-exit can be
+    // exercised (the global stub's addEventListener is a no-op).
+    function installOrientation(initialPortrait: boolean) {
+      portrait = initialPortrait;
+      orientationListeners = [];
+      window.matchMedia = jest.fn().mockImplementation((query: string) => ({
+        get matches() {
+          return query.includes('portrait') ? portrait : !portrait;
+        },
+        media: query,
+        onchange: null,
+        addEventListener: (_type: string, cb: (event: { matches: boolean }) => void) =>
+          orientationListeners.push(cb),
+        removeEventListener: jest.fn(),
+        addListener: (cb: (event: { matches: boolean }) => void) => orientationListeners.push(cb),
+        removeListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      }));
+    }
+
+    function rotateTo(nextPortrait: boolean) {
+      portrait = nextPortrait;
+      act(() => {
+        orientationListeners.forEach((cb) => cb({ matches: nextPortrait }));
+      });
+    }
+
+    function setFullscreenSupported(supported: boolean) {
+      Object.defineProperty(document, 'fullscreenEnabled', {
+        configurable: true,
+        writable: true,
+        value: supported,
+      });
+    }
+
+    function installFullscreenApi() {
+      requestFullscreenMock = jest.fn();
+      exitFullscreenMock = jest.fn();
+      fullscreenElement = null;
+      Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', {
+        configurable: true,
+        writable: true,
+        value: requestFullscreenMock,
+      });
+      Object.defineProperty(document, 'exitFullscreen', {
+        configurable: true,
+        writable: true,
+        value: exitFullscreenMock,
+      });
+      Object.defineProperty(document, 'fullscreenElement', {
+        configurable: true,
+        get: () => fullscreenElement,
+      });
+    }
+
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia;
+      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen;
+      delete (document as unknown as { exitFullscreen?: unknown }).exitFullscreen;
+      delete (document as unknown as { fullscreenElement?: unknown }).fullscreenElement;
+      delete (document as unknown as { fullscreenEnabled?: unknown }).fullscreenEnabled;
+    });
+
+    it('shows the button in portrait on a Fullscreen-capable browser', () => {
+      installOrientation(true);
+      setFullscreenSupported(true);
+      installFullscreenApi();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      expect(screen.getByTestId('fullscreen-button')).toBeInTheDocument();
+    });
+
+    it('hides the button in landscape', () => {
+      installOrientation(false);
+      setFullscreenSupported(true);
+      installFullscreenApi();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      expect(screen.queryByTestId('fullscreen-button')).not.toBeInTheDocument();
+    });
+
+    it('does not render the button where the Fullscreen API is unsupported', () => {
+      installOrientation(true);
+      setFullscreenSupported(false);
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      expect(screen.queryByTestId('fullscreen-button')).not.toBeInTheDocument();
+    });
+
+    it('requests fullscreen when tapped, without recording an interaction', async () => {
+      installOrientation(true);
+      setFullscreenSupported(true);
+      installFullscreenApi();
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        await user.click(screen.getByTestId('fullscreen-button'));
+      });
+
+      expect(requestFullscreenMock).toHaveBeenCalledTimes(1);
+      expect(mockCreateInteraction).not.toHaveBeenCalled();
+    });
+
+    it('exits fullscreen when the device rotates back to portrait', () => {
+      installOrientation(false); // start in landscape, already fullscreen
+      setFullscreenSupported(true);
+      installFullscreenApi();
+      fullscreenElement = document.documentElement;
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      expect(exitFullscreenMock).not.toHaveBeenCalled();
+
+      rotateTo(true);
+
+      expect(exitFullscreenMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('layout', () => {
     it('renders the action buttons above the image-summary and weights readout', async () => {
       const user = userEvent.setup();

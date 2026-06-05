@@ -6,6 +6,7 @@ import type {
   StackRankProfileWeights,
 } from '@/types/scroller-customer-interactions-db';
 import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
+import { Maximize } from 'lucide-react';
 
 // Horizontal swipe gesture tuning for the image area (PRO-236). A swipe only
 // counts as a Skip/Like when it travels at least SWIPE_MIN_DISTANCE_PX
@@ -52,6 +53,120 @@ function useIsMobileLandscape(): boolean {
   return isMobileLandscape;
 }
 
+// Fullscreen button (PRO-238). In a normal browser tab the URL bar can only be
+// removed by the Fullscreen API, which requires a user gesture — so this is an
+// explicit button, never automatic, keeping the PRO-235 decision (no
+// auto-fullscreen on rotation) intact. The button shows only in portrait on a
+// Fullscreen-capable browser: the user taps it, rotates to landscape for the
+// bar-free view (the button is gone there), and rotating back to portrait exits
+// fullscreen. iPhone Safari has no element Fullscreen API, so the button is
+// feature-detected away there.
+const PORTRAIT_QUERY = '(orientation: portrait)';
+
+// Minimal typing for the still-prefixed WebKit Fullscreen API (older Android
+// webviews); modern Chrome uses the unprefixed names.
+interface FullscreenDocument extends Document {
+  webkitFullscreenEnabled?: boolean;
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+}
+interface FullscreenElement extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+}
+
+// requestFullscreen/exitFullscreen return a promise that rejects if the user
+// dismisses the prompt or the activating gesture is stale; there is nothing to
+// recover, so swallow it rather than surfacing an unhandled rejection.
+function ignoreRejection(result: Promise<void> | void): void {
+  if (result && typeof (result as Promise<void>).catch === 'function') {
+    (result as Promise<void>).catch(() => {});
+  }
+}
+
+function getFullscreenElement(): Element | null {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  const doc = document as FullscreenDocument;
+  return doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+}
+
+function requestPageFullscreen(): void {
+  if (typeof document === 'undefined') {
+    return;
+  }
+  const el = document.documentElement as FullscreenElement;
+  const request = el.requestFullscreen ?? el.webkitRequestFullscreen;
+  if (!request) {
+    return;
+  }
+  try {
+    ignoreRejection(request.call(el));
+  } catch {
+    /* fullscreen is best-effort */
+  }
+}
+
+function exitPageFullscreen(): void {
+  if (typeof document === 'undefined') {
+    return;
+  }
+  const doc = document as FullscreenDocument;
+  const exit = doc.exitFullscreen ?? doc.webkitExitFullscreen;
+  if (!exit) {
+    return;
+  }
+  try {
+    ignoreRejection(exit.call(doc));
+  } catch {
+    /* fullscreen is best-effort */
+  }
+}
+
+// True only in portrait. Mirrors useIsMobileLandscape's matchMedia plumbing
+// (incl. the Safari < 14 addListener fallback) and is SSR/no-matchMedia safe.
+function useIsPortrait(): boolean {
+  const [isPortrait, setIsPortrait] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia(PORTRAIT_QUERY);
+    const update = () => setIsPortrait(mediaQuery.matches);
+    update();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', update);
+      return () => mediaQuery.removeEventListener('change', update);
+    }
+
+    mediaQuery.addListener(update);
+    return () => mediaQuery.removeListener(update);
+  }, []);
+
+  return isPortrait;
+}
+
+// Whether the Fullscreen API is usable, resolved on the client only. It is
+// false/undefined on iPhone Safari (no element fullscreen), which is exactly how
+// the button stays hidden there. Resolved in an effect so the server and first
+// client render agree, avoiding a hydration mismatch.
+function useFullscreenSupported(): boolean {
+  const [supported, setSupported] = useState(false);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const doc = document as FullscreenDocument;
+    setSupported(Boolean(doc.fullscreenEnabled ?? doc.webkitFullscreenEnabled));
+  }, []);
+
+  return supported;
+}
+
 interface ImageScrollerProps {
   images: StackRankImage[];
   customerId: number;
@@ -81,6 +196,8 @@ export default function ImageScroller({
   // preference is session-only and persists as the user advances (PRO-234).
   const [debug, setDebug] = useState(false);
   const isMobileLandscape = useIsMobileLandscape();
+  const isPortrait = useIsPortrait();
+  const fullscreenSupported = useFullscreenSupported();
 
   // Synchronous in-flight guard shared by every action entry point (buttons, tap
   // zones, swipes). The `submitting` state drives the disabled UI, but it updates
@@ -96,6 +213,16 @@ export default function ImageScroller({
   useEffect(() => {
     setImageShownAtMs(Date.now());
   }, [currentIndex]);
+
+  // Rotating back to portrait leaves fullscreen so the normal, button-bearing
+  // view returns; exiting needs no user gesture, and only entering landscape is
+  // left untouched so the PRO-235 "no Fullscreen on landscape" behaviour holds
+  // (PRO-238).
+  useEffect(() => {
+    if (isPortrait && getFullscreenElement()) {
+      exitPageFullscreen();
+    }
+  }, [isPortrait]);
 
   if (images.length === 0 || currentIndex >= images.length) {
     if (loadingMore || !noMoreAvailable) {
@@ -292,6 +419,24 @@ export default function ImageScroller({
           disabled={submitting}
           className={`absolute inset-y-0 right-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed ${isMobileLandscape ? 'focus:outline focus:outline-2 focus:outline-blue-500' : 'focus:outline-none'}`}
         />
+        {/* Portrait-only fullscreen entry. Sits above the Skip/Like tap zones
+            (z-10) and stops the tap from also hitting the Like zone underneath.
+            Hidden in landscape and where the Fullscreen API is unsupported
+            (iPhone Safari) (PRO-238). */}
+        {fullscreenSupported && isPortrait && (
+          <button
+            type="button"
+            data-testid="fullscreen-button"
+            aria-label="Enter fullscreen"
+            onClick={(event) => {
+              event.stopPropagation();
+              requestPageFullscreen();
+            }}
+            className="absolute top-2 right-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60 focus:outline focus:outline-2 focus:outline-blue-500"
+          >
+            <Maximize className="h-5 w-5" aria-hidden="true" />
+          </button>
+        )}
       </div>
       {/* Visible action buttons: hidden in mobile landscape so the image fills
           the viewport; the tap zones take over there (PRO-235). */}
