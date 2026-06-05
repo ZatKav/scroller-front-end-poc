@@ -9,6 +9,15 @@ module.exports = {
   ],
   theme: {
   	extend: {
+  		// Mobile landscape: landscape orientation with a short viewport. The
+  		// max-height guard excludes tall desktop landscape so the desktop layout
+  		// is unchanged. Kept in sync with MOBILE_LANDSCAPE_QUERY in
+  		// ImageScroller.tsx (PRO-235).
+  		screens: {
+  			'mobile-landscape': {
+  				raw: '(orientation: landscape) and (max-height: 600px)'
+  			}
+  		},
   		fontFamily: {
   			sans: [
   				'Inter',

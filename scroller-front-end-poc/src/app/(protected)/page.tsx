@@ -139,7 +139,7 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="min-h-screen flex flex-col items-center bg-gradient-to-br from-blue-50 to-indigo-100 px-2 py-4">
+    <main className="min-h-[100dvh] flex flex-col items-center bg-gradient-to-br from-blue-50 to-indigo-100 px-2 py-4 mobile-landscape:p-0">
       {error && <p className="text-red-600">{error}</p>}
       {!error && images === null && (
         <p className="text-gray-500">Loading images...</p>

@@ -7,6 +7,42 @@ import type {
 } from '@/types/scroller-customer-interactions-db';
 import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
 
+// Mobile landscape only: landscape orientation with a short viewport. The
+// max-height guard keeps tall desktop landscape out, so the desktop layout is
+// unchanged. Kept in sync with the `mobile-landscape` screen in
+// tailwind.config.js, which drives the CSS hiding of the controls (PRO-235).
+const MOBILE_LANDSCAPE_QUERY = '(orientation: landscape) and (max-height: 600px)';
+
+// Observe whether we are in mobile landscape. CSS hides the visible Skip/Like,
+// Debug and Reset controls there, but CSS cannot toggle aria-hidden/tabIndex, so
+// the orientation is tracked at runtime to promote the tap zones to real,
+// labelled, focusable controls when the buttons are gone (PRO-235). No Fullscreen
+// API is used: dvh sizing reclaims the address-bar space instead.
+function useIsMobileLandscape(): boolean {
+  const [isMobileLandscape, setIsMobileLandscape] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia(MOBILE_LANDSCAPE_QUERY);
+    const update = () => setIsMobileLandscape(mediaQuery.matches);
+    update();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', update);
+      return () => mediaQuery.removeEventListener('change', update);
+    }
+
+    // Safari < 14 only exposes the deprecated addListener/removeListener API.
+    mediaQuery.addListener(update);
+    return () => mediaQuery.removeListener(update);
+  }, []);
+
+  return isMobileLandscape;
+}
+
 interface ImageScrollerProps {
   images: StackRankImage[];
   customerId: number;
@@ -35,6 +71,7 @@ export default function ImageScroller({
   // default so the large JSON blocks don't dominate the mobile view; the
   // preference is session-only and persists as the user advances (PRO-234).
   const [debug, setDebug] = useState(false);
+  const isMobileLandscape = useIsMobileLandscape();
 
   useEffect(() => {
     setImageShownAtMs(Date.now());
@@ -142,39 +179,48 @@ export default function ImageScroller({
   return (
     <div className="flex flex-col items-center gap-6 w-full">
       {/* The image is the dominant element: it fills the available width while
-          object-contain preserves its aspect ratio, and the max-height cap keeps
-          the action buttons visible without scrolling (PRO-233). */}
+          object-contain preserves its aspect ratio. The height cap uses dynamic
+          viewport units (dvh) so the image grows as the browser collapses the
+          address bar, and in mobile landscape it expands to the full viewport
+          because the action controls are hidden there (PRO-233, PRO-235). */}
       <div className="relative w-full">
         <img
           data-testid="scroller-image"
           src={currentImage.image_data!.startsWith('data:') ? currentImage.image_data! : `data:image/jpeg;base64,${currentImage.image_data}`}
           alt={currentImage.image_summary || 'Property image'}
-          className="w-full max-h-[70vh] rounded-lg shadow-md object-contain"
+          className="w-full max-h-[70dvh] mobile-landscape:max-h-[100dvh] rounded-lg shadow-md object-contain"
         />
         {/* Left/right tap zones mirror the Skip/Like buttons for fast thumb
-            interaction. They are aria-hidden and not focusable so they don't
-            duplicate the labelled buttons for keyboard/assistive-tech users
-            (PRO-233). */}
+            interaction. In portrait/desktop the labelled buttons are visible, so
+            the zones stay aria-hidden and unfocusable to avoid duplicating them
+            for keyboard/assistive-tech users (PRO-233). In mobile landscape the
+            buttons are hidden, so the zones become the accessible, labelled,
+            focusable Skip/Like controls so those users keep both actions
+            (PRO-235). */}
         <button
           type="button"
           data-testid="image-skip-zone"
-          aria-hidden="true"
-          tabIndex={-1}
+          aria-hidden={isMobileLandscape ? undefined : true}
+          aria-label={isMobileLandscape ? 'Skip' : undefined}
+          tabIndex={isMobileLandscape ? 0 : -1}
           onClick={() => handleAction(0)}
           disabled={submitting}
-          className="absolute inset-y-0 left-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none"
+          className={`absolute inset-y-0 left-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed ${isMobileLandscape ? 'focus:outline focus:outline-2 focus:outline-blue-500' : 'focus:outline-none'}`}
         />
         <button
           type="button"
           data-testid="image-like-zone"
-          aria-hidden="true"
-          tabIndex={-1}
+          aria-hidden={isMobileLandscape ? undefined : true}
+          aria-label={isMobileLandscape ? 'Like' : undefined}
+          tabIndex={isMobileLandscape ? 0 : -1}
           onClick={() => handleAction(1)}
           disabled={submitting}
-          className="absolute inset-y-0 right-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed focus:outline-none"
+          className={`absolute inset-y-0 right-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed ${isMobileLandscape ? 'focus:outline focus:outline-2 focus:outline-blue-500' : 'focus:outline-none'}`}
         />
       </div>
-      <div className="flex gap-4">
+      {/* Visible action buttons: hidden in mobile landscape so the image fills
+          the viewport; the tap zones take over there (PRO-235). */}
+      <div className="flex gap-4 mobile-landscape:hidden">
         <button
           onClick={() => handleAction(0)}
           disabled={submitting}
@@ -191,8 +237,9 @@ export default function ImageScroller({
         </button>
       </div>
       {/* Debug toggle: hides the summary/weights by default so they don't clutter
-          the mobile view, while staying a real, focusable control (PRO-234). */}
-      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+          the mobile view, while staying a real, focusable control (PRO-234). Also
+          hidden in mobile landscape so the image can fill the viewport (PRO-235). */}
+      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none mobile-landscape:hidden">
         <input
           type="checkbox"
           data-testid="debug-toggle"
@@ -203,7 +250,7 @@ export default function ImageScroller({
         Debug
       </label>
       {debug && (
-        <div className="grid grid-cols-2 gap-4 w-full max-w-3xl">
+        <div className="grid grid-cols-2 gap-4 w-full max-w-3xl mobile-landscape:hidden">
           {currentImage.image_summary && (
             <pre
               data-testid="image-summary"
@@ -220,7 +267,11 @@ export default function ImageScroller({
           </pre>
         </div>
       )}
-      {renderResetControls()}
+      {/* Reset stays available in portrait/desktop, but is hidden in mobile
+          landscape so the image owns the viewport (PRO-235). */}
+      <div className="flex flex-col items-center gap-6 mobile-landscape:hidden">
+        {renderResetControls()}
+      </div>
     </div>
   );
 }
