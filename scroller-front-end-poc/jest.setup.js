@@ -44,6 +44,27 @@ jest.mock('next/navigation', () => ({
   },
 }))
 
+// jsdom does not implement matchMedia. Provide a default stub that reports
+// portrait / non-mobile-landscape so components observing orientation can mount
+// without throwing (PRO-235). Individual tests override window.matchMedia to
+// simulate mobile landscape.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: jest.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  })
+}
+
 // Global test utilities
 global.fetch = jest.fn()
 

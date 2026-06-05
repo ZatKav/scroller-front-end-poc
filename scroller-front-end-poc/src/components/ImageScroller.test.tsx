@@ -325,13 +325,17 @@ describe('ImageScroller', () => {
   });
 
   describe('image sizing', () => {
-    it('renders the image at full viewport width with a height cap, not the old 60vh box', () => {
+    it('caps the image height with dynamic viewport units and expands it in mobile landscape', () => {
       render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
 
       const img = screen.getByTestId('scroller-image');
       expect(img).toHaveClass('w-full');
       expect(img).toHaveClass('object-contain');
-      expect(img).toHaveClass('max-h-[70vh]');
+      // dvh tracks the visible viewport as the address bar collapses (PRO-235).
+      expect(img).toHaveClass('max-h-[70dvh]');
+      expect(img).toHaveClass('mobile-landscape:max-h-[100dvh]');
+      // The old fixed-vh caps are gone.
+      expect(img.className).not.toContain('max-h-[70vh]');
       expect(img.className).not.toContain('max-h-[60vh]');
     });
   });
@@ -419,6 +423,110 @@ describe('ImageScroller', () => {
           'data:image/jpeg;base64,BBBB',
         );
       });
+    });
+  });
+
+  describe('mobile landscape', () => {
+    const originalMatchMedia = window.matchMedia;
+
+    function setMobileLandscape(matches: boolean) {
+      window.matchMedia = jest.fn().mockReturnValue({
+        matches,
+        media: '(orientation: landscape) and (max-height: 600px)',
+        onchange: null,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      });
+    }
+
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia;
+    });
+
+    it('promotes the tap zones to accessible, labelled, focusable controls', async () => {
+      setMobileLandscape(true);
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      const skipZone = screen.getByTestId('image-skip-zone');
+      const likeZone = screen.getByTestId('image-like-zone');
+
+      await waitFor(() => {
+        expect(skipZone).not.toHaveAttribute('aria-hidden');
+      });
+      expect(likeZone).not.toHaveAttribute('aria-hidden');
+      expect(skipZone).toHaveAttribute('aria-label', 'Skip');
+      expect(likeZone).toHaveAttribute('aria-label', 'Like');
+      expect(skipZone).toHaveAttribute('tabindex', '0');
+      expect(likeZone).toHaveAttribute('tabindex', '0');
+    });
+
+    it('hides the Skip/Like, Debug and Reset controls behind the mobile-landscape utility', () => {
+      setMobileLandscape(true);
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      // The visible buttons row, debug toggle and reset block are removed from
+      // view by CSS so the image fills the viewport (PRO-235). Query by text so
+      // we match the visible buttons, not the aria-labelled tap zones.
+      expect(screen.getByText('Skip').closest('div')).toHaveClass('mobile-landscape:hidden');
+      expect(screen.getByTestId('debug-toggle').closest('label')).toHaveClass(
+        'mobile-landscape:hidden',
+      );
+      expect(screen.getByText('Reset my interactions').closest('div')).toHaveClass(
+        'mobile-landscape:hidden',
+      );
+    });
+
+    it('records a skip via the tap zone when the buttons are hidden in landscape', async () => {
+      setMobileLandscape(true);
+      const user = userEvent.setup();
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      await act(async () => {
+        await user.click(screen.getByTestId('image-skip-zone'));
+      });
+
+      expect(mockCreateInteraction).toHaveBeenCalledWith({
+        customer_id: CUSTOMER_ID,
+        image_id: 1,
+        action: 0,
+        view_duration_ms: expect.any(Number),
+      });
+    });
+
+    it('keeps the tap zones inert in portrait so they do not duplicate the buttons', () => {
+      setMobileLandscape(false);
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      const skipZone = screen.getByTestId('image-skip-zone');
+      expect(skipZone).toHaveAttribute('aria-hidden', 'true');
+      expect(skipZone).toHaveAttribute('tabindex', '-1');
+      expect(skipZone).not.toHaveAttribute('aria-label');
+      expect(screen.getAllByRole('button', { name: 'Skip' })).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: 'Like' })).toHaveLength(1);
+    });
+
+    it('does not attempt the Fullscreen API when entering landscape', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const requestFullscreen = jest.fn();
+      // jsdom does not define requestFullscreen; spy on a stub to prove it is
+      // never called (dvh sizing is used instead of the Fullscreen API).
+      Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', {
+        configurable: true,
+        writable: true,
+        value: requestFullscreen,
+      });
+
+      setMobileLandscape(true);
+      render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+      expect(requestFullscreen).not.toHaveBeenCalled();
+      expect(consoleSpy).not.toHaveBeenCalled();
+
+      delete (HTMLElement.prototype as unknown as { requestFullscreen?: unknown }).requestFullscreen;
+      consoleSpy.mockRestore();
     });
   });
 
