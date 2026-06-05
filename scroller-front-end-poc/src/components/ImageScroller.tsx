@@ -1,11 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
   StackRankImage,
   StackRankProfileWeights,
 } from '@/types/scroller-customer-interactions-db';
 import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
+
+// Horizontal swipe gesture tuning for the image area (PRO-236). A swipe only
+// counts as a Skip/Like when it travels at least SWIPE_MIN_DISTANCE_PX
+// horizontally AND its horizontal travel dominates its vertical travel by
+// SWIPE_HORIZONTAL_RATIO. This keeps short taps and ordinary vertical page
+// scrolling from being misread as an action: swipe right Likes, swipe left
+// Skips, mirroring the existing right/left tap zones.
+const SWIPE_MIN_DISTANCE_PX = 60;
+const SWIPE_HORIZONTAL_RATIO = 1.5;
 
 // Mobile landscape only: landscape orientation with a short viewport. The
 // max-height guard keeps tall desktop landscape out, so the desktop layout is
@@ -73,6 +82,17 @@ export default function ImageScroller({
   const [debug, setDebug] = useState(false);
   const isMobileLandscape = useIsMobileLandscape();
 
+  // Synchronous in-flight guard shared by every action entry point (buttons, tap
+  // zones, swipes). The `submitting` state drives the disabled UI, but it updates
+  // asynchronously, so it cannot stop a second action that fires in the same tick
+  // — e.g. the synthetic click a browser dispatches after a consumed touch swipe.
+  // This ref flips synchronously, guaranteeing a single interaction per gesture
+  // even before React re-renders (PRO-236).
+  const actionInFlightRef = useRef(false);
+  // Start point of an active single-finger touch on the image, or null when no
+  // qualifying gesture is in progress (PRO-236).
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
   useEffect(() => {
     setImageShownAtMs(Date.now());
   }, [currentIndex]);
@@ -110,6 +130,12 @@ export default function ImageScroller({
   };
 
   async function handleAction(action: 0 | 1) {
+    // Drop the call if an interaction is already being recorded so no gesture
+    // (button, tap zone, or swipe) can double-submit or double-advance (PRO-236).
+    if (actionInFlightRef.current) {
+      return;
+    }
+    actionInFlightRef.current = true;
     setSubmitting(true);
     try {
       const nowMs = Date.now();
@@ -129,8 +155,52 @@ export default function ImageScroller({
     } catch (error) {
       console.error('Failed to record interaction:', error);
     } finally {
+      actionInFlightRef.current = false;
       setSubmitting(false);
     }
+  }
+
+  // Record where a single-finger touch begins so the end point can be compared
+  // against the swipe thresholds. Multi-touch gestures (e.g. pinch-zoom) are
+  // ignored so they never resolve into a Skip/Like (PRO-236).
+  function handleImageTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    if (event.touches.length !== 1) {
+      touchStartRef.current = null;
+      return;
+    }
+    const touch = event.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleImageTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    if (!touch) {
+      return;
+    }
+
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    // Ignore short drags and mostly-vertical drags so ordinary mobile scrolling
+    // is never converted into a Skip/Like (PRO-236).
+    if (absX < SWIPE_MIN_DISTANCE_PX || absX < absY * SWIPE_HORIZONTAL_RATIO) {
+      return;
+    }
+
+    // Suppress the synthetic click the browser fires on the underlying tap zone
+    // after a consumed touch swipe, so the swipe is not also counted as a tap.
+    // The actionInFlightRef guard is the ultimate backstop, but preventing the
+    // ghost click avoids relying on timing entirely (PRO-236).
+    event.preventDefault();
+    handleAction(deltaX > 0 ? 1 : 0);
   }
 
   async function handleReset() {
@@ -183,7 +253,12 @@ export default function ImageScroller({
           viewport units (dvh) so the image grows as the browser collapses the
           address bar, and in mobile landscape it expands to the full viewport
           because the action controls are hidden there (PRO-233, PRO-235). */}
-      <div className="relative w-full">
+      <div
+        className="relative w-full"
+        data-testid="scroller-swipe-area"
+        onTouchStart={handleImageTouchStart}
+        onTouchEnd={handleImageTouchEnd}
+      >
         <img
           data-testid="scroller-image"
           src={currentImage.image_data!.startsWith('data:') ? currentImage.image_data! : `data:image/jpeg;base64,${currentImage.image_data}`}
