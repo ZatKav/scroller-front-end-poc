@@ -272,16 +272,19 @@ export async function ensureSeededDetailListing(): Promise<{ id: number }> {
 }
 
 /**
- * Best-effort teardown for the fixed E2E seed listing. The estate agent is
- * intentionally left alone because it may be shared with real data.
+ * Best-effort teardown for a fixed E2E seed listing identified by its
+ * external_url. Tolerant of every failure mode (missing config, missing
+ * listing, lookup/delete errors) so it can run in an afterAll without masking a
+ * test result. The estate agent is intentionally left alone because it may be
+ * shared with real data.
  */
-export async function deleteSeededScrollerListing(): Promise<void> {
+async function deleteSeedListingByExternalUrl(externalUrl: string): Promise<void> {
   let config: EnrichmentDbConfig;
   try {
     config = getEnrichmentDbConfig();
   } catch (error) {
     console.warn(
-      `Skipping E2E seed listing cleanup: ${error instanceof Error ? error.message : error}`,
+      `Skipping E2E seed listing cleanup for ${externalUrl}: ${error instanceof Error ? error.message : error}`,
     );
     return;
   }
@@ -289,7 +292,7 @@ export async function deleteSeededScrollerListing(): Promise<void> {
   const { baseUrl, headers } = config;
   try {
     const lookup = await fetch(
-      `${baseUrl}/api/listings/external_url/?external_url=${encodeURIComponent(SEED_EXTERNAL_URL)}`,
+      `${baseUrl}/api/listings/external_url/?external_url=${encodeURIComponent(externalUrl)}`,
       { headers },
     );
 
@@ -298,7 +301,7 @@ export async function deleteSeededScrollerListing(): Promise<void> {
     }
     if (!lookup.ok) {
       console.warn(
-        `Skipping E2E seed listing cleanup after lookup failed (${await readError(lookup)})`,
+        `Skipping E2E seed listing cleanup for ${externalUrl} after lookup failed (${await readError(lookup)})`,
       );
       return;
     }
@@ -306,7 +309,7 @@ export async function deleteSeededScrollerListing(): Promise<void> {
     const listing = await lookup.json();
     if (typeof listing?.id !== 'number') {
       console.warn(
-        'Skipping E2E seed listing cleanup: lookup response did not include a numeric id.',
+        `Skipping E2E seed listing cleanup for ${externalUrl}: lookup response did not include a numeric id.`,
       );
       return;
     }
@@ -317,12 +320,26 @@ export async function deleteSeededScrollerListing(): Promise<void> {
     });
     if (!deleteResponse.ok && deleteResponse.status !== 404) {
       console.warn(
-        `E2E seed listing cleanup failed (${await readError(deleteResponse)})`,
+        `E2E seed listing cleanup for ${externalUrl} failed (${await readError(deleteResponse)})`,
       );
     }
   } catch (error) {
     console.warn(
-      `E2E seed listing cleanup failed: ${error instanceof Error ? error.message : error}`,
+      `E2E seed listing cleanup for ${externalUrl} failed: ${error instanceof Error ? error.message : error}`,
     );
   }
+}
+
+/**
+ * Best-effort teardown for the fixed feed seed listing.
+ */
+export async function deleteSeededScrollerListing(): Promise<void> {
+  await deleteSeedListingByExternalUrl(SEED_EXTERNAL_URL);
+}
+
+/**
+ * Best-effort teardown for the fixed detail-page seed listing (FE-3 / PRO-255).
+ */
+export async function deleteSeededDetailListing(): Promise<void> {
+  await deleteSeedListingByExternalUrl(DETAIL_SEED_EXTERNAL_URL);
 }

@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { loginAndExpectAuthenticated } from './helpers/login';
-import { ensureSeededDetailListing } from './helpers/enrichment-db';
+import {
+  deleteSeededDetailListing,
+  ensureSeededDetailListing,
+} from './helpers/enrichment-db';
+
+test.afterAll(async () => {
+  await deleteSeededDetailListing();
+});
 
 test('renders the detail page for a seeded listing', async ({ page }) => {
   test.setTimeout(60000);

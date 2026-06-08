@@ -61,9 +61,15 @@ route's `error` boundary. The BFF route remains for client-side callers.
 - `tests/helpers/enrichment-db.ts`: parameterised the image seeders with a
   per-seed id space and added `ensureSeededDetailListing()` (own external_url +
   image-id space; idempotent; returns the enrichment-db id) for the detail e2e.
+  Also added `deleteSeededDetailListing()` teardown, refactoring the PRO-257
+  cleanup into a shared `deleteSeedListingByExternalUrl(externalUrl)` that both
+  the feed and detail teardowns delegate to (best-effort; leaves the estate
+  agent alone).
 - `tests/listing-detail.spec.ts` (new): logs in, seeds a renderable listing,
   navigates to `/listing/{id}`, asserts the title, `£450,000` price, and a
-  carousel image.
+  carousel image. A `test.afterAll` deletes the seeded detail listing so the
+  shared enrichment-db is not left with leftover seed data (mirrors the feed
+  spec's PRO-257 cleanup convention).
 
 ## Tests
 
