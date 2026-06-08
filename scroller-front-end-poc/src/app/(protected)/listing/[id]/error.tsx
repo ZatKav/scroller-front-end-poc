@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { appPath } from '@/lib/base-path';
 
@@ -9,6 +10,10 @@ interface ErrorPageProps {
 }
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
   return (
     <main className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
       <section className="w-full max-w-md rounded-lg border border-white/70 bg-white/85 p-6 text-center shadow-sm">

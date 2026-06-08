@@ -2,6 +2,16 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import ErrorPage from './error';
 
 describe('listing detail error state', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
   it('renders an error message and retries when requested', () => {
     const reset = jest.fn();
 
@@ -23,5 +33,13 @@ describe('listing detail error state', () => {
     expect(screen.getByRole('link', { name: 'Back to feed' }).getAttribute('href')).toBe(
       '/',
     );
+  });
+
+  it('logs the error for observability', () => {
+    const error = new Error('Render failed');
+
+    render(<ErrorPage error={error} reset={jest.fn()} />);
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(error);
   });
 });
