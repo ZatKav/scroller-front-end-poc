@@ -163,7 +163,20 @@ function isAuthenticatedE2EUser(user: unknown): user is AuthenticatedE2EUser {
   );
 }
 
-export async function loginAndExpectAuthenticated(page: Page): Promise<AuthenticatedE2EUser> {
+export interface LoginExpectationOptions {
+  // Whether to assert the scroller feed image renders as part of the login
+  // check. Defaults to true for deploy-smoke callers. Tests that drive feed
+  // interactions should pass false and assert the image themselves *after*
+  // resetting the user's interactions, otherwise a feed depleted by a prior
+  // run leaves no `scroller-image` to find and this assertion times out.
+  expectScrollerImage?: boolean;
+}
+
+export async function loginAndExpectAuthenticated(
+  page: Page,
+  options: LoginExpectationOptions = {},
+): Promise<AuthenticatedE2EUser> {
+  const { expectScrollerImage = true } = options;
   const { username, password } = getLoginCredentials();
 
   await page.goto(appPath('/login'));
@@ -199,9 +212,12 @@ export async function loginAndExpectAuthenticated(page: Page): Promise<Authentic
   // intermittent. The default 5s assertion timeout can lapse before the client
   // bundle finishes loading and renders the image, so give it room. (The
   // landing is a soft navigation, so this does not re-trigger the auth check.)
-  await expect(page.getByTestId('scroller-image')).toBeVisible({
-    timeout: 30_000,
-  });
+  // Skipped for callers that reset interactions first — see the option doc.
+  if (expectScrollerImage) {
+    await expect(page.getByTestId('scroller-image')).toBeVisible({
+      timeout: 30_000,
+    });
+  }
 
   return user as AuthenticatedE2EUser;
 }

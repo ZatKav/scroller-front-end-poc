@@ -45,7 +45,10 @@ test('retired default jack password is rejected', async ({ page }) => {
 test('pre-deploy login check passes with valid credentials', async ({ page }) => {
   test.setTimeout(60000);
 
-  const user = await loginAndExpectAuthenticated(page);
+  // Defer the scroller-image assertion until after the reset below: the queue
+  // can be exhausted by prior runs, so asserting it inside the login helper
+  // would fail before we get a chance to repopulate it.
+  const user = await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
 
   // The smoke test Likes and Skips images, which permanently records
   // interactions for this user. The scroller only serves images the user has
@@ -132,7 +135,9 @@ test('mobile swipes record persisted Like and Skip interactions', async ({ page,
   test.skip(browserName !== 'chromium', 'Swipe regression runs on Chromium only.');
   test.setTimeout(60000);
 
-  const user = await loginAndExpectAuthenticated(page);
+  // Defer the scroller-image assertion until after the reset below (see the
+  // button-based smoke above for the rationale).
+  const user = await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
 
   // Reset first so the queue is fully populated regardless of prior runs, exactly
   // like the button-based smoke above.
