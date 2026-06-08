@@ -12,9 +12,15 @@
 // treats as eligible (a valid v2 "photo" summary). We create exactly that.
 
 const SEED_EXTERNAL_URL = 'https://e2e.seed.local/scroller-smoke-listing';
-const SEED_IMAGE_URL = 'https://e2e.seed.local/scroller-smoke-image.jpg';
+const SEED_IMAGE_URL_PREFIX = 'https://e2e.seed.local/scroller-smoke-image';
 const SEED_ORIGINAL_LISTING_ID = 990000001;
-const SEED_ORIGINAL_IMAGE_ID = 990000001;
+const SEED_ORIGINAL_IMAGE_ID_BASE = 990000000;
+
+// The feed tests Like one card and then Skip the next (asserting the two are
+// distinct images), so the queue needs at least two renderable cards. Seed a
+// few for margin. stack-rank serves multiple images from the same listing, so
+// one seed listing with several images is sufficient.
+const SEED_IMAGE_COUNT = 3;
 
 // The only image_summary shape stack-rank treats as an eligible card — a valid
 // v2 "photo" summary (scroller-customer-interactions-db
@@ -93,14 +99,18 @@ async function getOrCreateEstateAgent(config: EnrichmentDbConfig): Promise<numbe
   return (await createResponse.json()).id as number;
 }
 
-async function addSeedImage(config: EnrichmentDbConfig, listingId: number): Promise<void> {
+async function addSeedImage(
+  config: EnrichmentDbConfig,
+  listingId: number,
+  index: number,
+): Promise<void> {
   const { baseUrl, headers } = config;
   const response = await fetch(`${baseUrl}/api/listings/${listingId}/images/`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      url: SEED_IMAGE_URL,
-      original_image_id: SEED_ORIGINAL_IMAGE_ID,
+      url: `${SEED_IMAGE_URL_PREFIX}-${index}.jpg`,
+      original_image_id: SEED_ORIGINAL_IMAGE_ID_BASE + index,
       listing_id: listingId,
       image_summary: SEED_IMAGE_SUMMARY,
       image_data: SEED_IMAGE_DATA_BASE64,
@@ -111,12 +121,27 @@ async function addSeedImage(config: EnrichmentDbConfig, listingId: number): Prom
   }
 }
 
+// Top up the listing to SEED_IMAGE_COUNT renderable images, adding only what is
+// missing so repeat calls are idempotent.
+async function ensureListingHasImages(
+  config: EnrichmentDbConfig,
+  listing: { id: number; images?: Array<{ image_data?: string | null }> },
+): Promise<void> {
+  const existing = Array.isArray(listing.images)
+    ? listing.images.filter((image) => image.image_data).length
+    : 0;
+  for (let index = existing; index < SEED_IMAGE_COUNT; index += 1) {
+    await addSeedImage(config, listing.id, index);
+  }
+}
+
 /**
- * Ensure the scroller feed has at least one renderable, stack-rank-eligible
- * image. Idempotent: reuses the fixed seed listing (keyed on external_url) and
- * only creates what is missing, so it is safe to call before every feed test.
+ * Ensure the scroller feed has at least `SEED_IMAGE_COUNT` renderable,
+ * stack-rank-eligible images. Idempotent: reuses the fixed seed listing (keyed
+ * on external_url) and only creates what is missing, so it is safe to call
+ * before every feed test.
  */
-export async function ensureSeededScrollerImage(): Promise<void> {
+export async function ensureSeededScrollerImages(): Promise<void> {
   const config = getEnrichmentDbConfig();
   const { baseUrl, headers } = config;
 
@@ -126,12 +151,7 @@ export async function ensureSeededScrollerImage(): Promise<void> {
   );
 
   if (lookup.ok) {
-    const listing = await lookup.json();
-    const hasRenderableImage =
-      Array.isArray(listing.images) && listing.images.some((image: { image_data?: string | null }) => image.image_data);
-    if (!hasRenderableImage) {
-      await addSeedImage(config, listing.id);
-    }
+    await ensureListingHasImages(config, await lookup.json());
     return;
   }
 
@@ -155,6 +175,5 @@ export async function ensureSeededScrollerImage(): Promise<void> {
     throw new Error(`Failed to create seed listing (${await readError(createListing)})`);
   }
 
-  const listing = await createListing.json();
-  await addSeedImage(config, listing.id);
+  await ensureListingHasImages(config, await createListing.json());
 }

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { loginAndExpectAuthenticated } from './helpers/login';
-import { ensureSeededScrollerImage } from './helpers/enrichment-db';
+import { ensureSeededScrollerImages } from './helpers/enrichment-db';
 import {
   deleteCustomerImageInteractions,
   getCustomerImageInteractions,
@@ -55,7 +55,7 @@ test('pre-deploy login check passes with valid credentials', async ({ page }) =>
   // enrichment-db (the stack-rank image source) can be redeployed/wiped, leaving
   // an empty feed; seed idempotently so this test does not depend on ambient
   // data. Seed before the reset so the post-reset queue is non-empty.
-  await ensureSeededScrollerImage();
+  await ensureSeededScrollerImages();
 
   // The smoke test Likes and Skips images, which permanently records
   // interactions for this user. The scroller only serves images the user has
@@ -149,7 +149,7 @@ test('mobile swipes record persisted Like and Skip interactions', async ({ page,
   // Seed a renderable feed image (idempotent) so the test does not depend on
   // ambient enrichment-db data, then reset so the queue is fully populated
   // regardless of prior runs, exactly like the button-based smoke above.
-  await ensureSeededScrollerImage();
+  await ensureSeededScrollerImages();
   await deleteCustomerImageInteractions(user.id);
   await page.reload();
 

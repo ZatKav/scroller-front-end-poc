@@ -78,14 +78,17 @@ distinct, pre-existing issues were addressed in the test layer:
   even after a full interaction reset ("No more images"), failing every
   `scroller-image` assertion across branches.
   - **Strict feed tests now self-seed:** `tests/helpers/enrichment-db.ts`
-    (`ensureSeededScrollerImage`) idempotently creates an estate agent + a
-    listing (keyed on a fixed `external_url`) + one renderable image (valid JPEG
-    bytes + a valid v2 "photo" `image_summary`, the only shape stack-rank treats
-    as eligible). `login.spec.ts` calls it before the reset so the feed is
-    non-empty regardless of ambient data. Requires `ENRICHMENT_DB_BASE_URL` /
+    (`ensureSeededScrollerImages`) idempotently creates an estate agent + a
+    listing (keyed on a fixed `external_url`) + several renderable images (valid
+    JPEG bytes + a valid v2 "photo" `image_summary`, the only shape stack-rank
+    treats as eligible). It seeds `SEED_IMAGE_COUNT` (3) images because the feed
+    tests Like one card then Skip the next and assert the two are distinct, so
+    the queue needs ≥2 cards (stack-rank serves multiple images per listing).
+    `login.spec.ts` calls it before the reset so the feed is non-empty
+    regardless of ambient data. Requires `ENRICHMENT_DB_BASE_URL` /
     `ENRICHMENT_DB_API_KEY`, now set on the CI `test-e2e` job (`.woodpecker.yml`).
     Validated locally end-to-end: seed → enrichment-db → interactions-db
-    stack-rank returns the image.
+    stack-rank returns the seeded images (idempotent on repeat).
   - **Deploy smoke made feed-agnostic:** `deploy-login.smoke.spec.ts` (main-only,
     no DB creds, cannot seed) asserts the authenticated scroller rendered (image
     **or** the valid empty state) and that the visitor is not bounced to login
