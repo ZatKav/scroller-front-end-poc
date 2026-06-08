@@ -50,7 +50,12 @@ describe('stack-rank-session', () => {
 
     expect(getStackRank(1)).toBeUndefined();
     expect(getStackRank(STACK_RANK_SESSION_MAX_ENTRIES + 1)).toEqual([
-      { id: STACK_RANK_SESSION_MAX_ENTRIES + 1, image_data: null, image_summary: `Image ${STACK_RANK_SESSION_MAX_ENTRIES + 1}` },
+      {
+        id: STACK_RANK_SESSION_MAX_ENTRIES + 1,
+        listing_id: 2000 + STACK_RANK_SESSION_MAX_ENTRIES + 1,
+        image_data: null,
+        image_summary: `Image ${STACK_RANK_SESSION_MAX_ENTRIES + 1}`,
+      },
     ]);
   });
 });
