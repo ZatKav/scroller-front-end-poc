@@ -40,11 +40,19 @@ steps:
       JWT_SECRET_KEY: f74ed097f9240073570d2534bb8e4184
       E2E_LOGIN_USERNAME: jack
       E2E_LOGIN_PASSWORD: jackNgrok2026!
-      SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL: http://host.containers.internal:8400
+      # Reach the host-published backend services over 127.0.0.1, not
+      # host.containers.internal: the latter's DNS resolution is unreliable from
+      # this step (notably from the Next dev server's server-side fetches, which
+      # surfaced as intermittent "could not load"/404 detail-page failures). The
+      # runner reaches host services on the loopback, the same way
+      # scroller-customer-interactions-db's CI talks to enrichment-db
+      # (ENRICHMENT_DB_BASE_URL: http://127.0.0.1:8200).
+      SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL: http://127.0.0.1:8400
       SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY: a9e08181c6f01244edc35813e387102bd9c889d014d10d27d940d62d7aaf827d
-      # Used by the feed E2E tests to seed a renderable stack-rank image when the
-      # shared enrichment-db (the feed source) has been redeployed/wiped.
-      ENRICHMENT_DB_BASE_URL: http://host.containers.internal:8200
+      # Used by the feed + detail E2E tests to seed renderable listings/images
+      # when the shared enrichment-db has been redeployed/wiped, and by the detail
+      # page's server-side BFF read.
+      ENRICHMENT_DB_BASE_URL: http://127.0.0.1:8200
       ENRICHMENT_DB_API_KEY: a9e08181c6f01244edc35813e387102bd9c889d014d10d27d940d62d7aaf827d
     commands:
       - |

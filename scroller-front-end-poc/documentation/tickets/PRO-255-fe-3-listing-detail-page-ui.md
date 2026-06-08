@@ -85,9 +85,24 @@ route's `error` boundary. The BFF route remains for client-side callers.
   was reachable locally, but the app server and login backend were not wired up in
   this environment, so the e2e was not executed locally — consistent with FE-2.
 
+## CI fix: e2e backend endpoints
+
+The first CI run failed only on the new detail e2e: navigating to `/listing/{id}`
+rendered the page's *correct* error states ("Listing not found" / "Listing could
+not load"), i.e. the BFF's server-side read of enrichment-db failed even though
+the seed (same env) succeeded. Root cause was the `test-e2e` job reaching the
+host-published backends via `host.containers.internal`, whose DNS resolution is
+unreliable from this step (notably the Next dev server's server-side fetches).
+Switched `ENRICHMENT_DB_BASE_URL` and `SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL`
+to `http://127.0.0.1:{port}` in `.woodpecker.yml`, matching how
+`scroller-customer-interactions-db`'s CI already reaches enrichment-db
+(`http://127.0.0.1:8200`). Requires a CI run to confirm.
+
 ## Documentation updated
 
 - `documentation/tickets/PRO-255-fe-3-listing-detail-page-ui.md`: this snapshot.
+- `.woodpecker.yml`: `test-e2e` backend base URLs moved off
+  `host.containers.internal` to `127.0.0.1` (see above).
 - No `.env.example` change: FE-2 already documents `ENRICHMENT_DB_BASE_URL` /
   `ENRICHMENT_DB_API_KEY`, and FE-3 introduces no new env.
 
