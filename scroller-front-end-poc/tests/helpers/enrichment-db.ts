@@ -99,18 +99,31 @@ async function getOrCreateEstateAgent(config: EnrichmentDbConfig): Promise<numbe
   return (await createResponse.json()).id as number;
 }
 
+// Per-seed image identity so distinct seed listings (feed vs detail) never reuse
+// the same globally-unique original_image_id. Defaults to the feed seed space.
+interface SeedImageSpace {
+  originalImageIdBase: number;
+  urlPrefix: string;
+}
+
+const FEED_IMAGE_SPACE: SeedImageSpace = {
+  originalImageIdBase: SEED_ORIGINAL_IMAGE_ID_BASE,
+  urlPrefix: SEED_IMAGE_URL_PREFIX,
+};
+
 async function addSeedImage(
   config: EnrichmentDbConfig,
   listingId: number,
   index: number,
+  space: SeedImageSpace = FEED_IMAGE_SPACE,
 ): Promise<void> {
   const { baseUrl, headers } = config;
   const response = await fetch(`${baseUrl}/api/listings/${listingId}/images/`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      url: `${SEED_IMAGE_URL_PREFIX}-${index}.jpg`,
-      original_image_id: SEED_ORIGINAL_IMAGE_ID_BASE + index,
+      url: `${space.urlPrefix}-${index}.jpg`,
+      original_image_id: space.originalImageIdBase + index,
       listing_id: listingId,
       image_summary: SEED_IMAGE_SUMMARY,
       image_data: SEED_IMAGE_DATA_BASE64,
@@ -126,12 +139,13 @@ async function addSeedImage(
 async function ensureListingHasImages(
   config: EnrichmentDbConfig,
   listing: { id: number; images?: Array<{ image_data?: string | null }> },
+  space: SeedImageSpace = FEED_IMAGE_SPACE,
 ): Promise<void> {
   const existing = Array.isArray(listing.images)
     ? listing.images.filter((image) => image.image_data).length
     : 0;
   for (let index = existing; index < SEED_IMAGE_COUNT; index += 1) {
-    await addSeedImage(config, listing.id, index);
+    await addSeedImage(config, listing.id, index, space);
   }
 }
 
@@ -176,4 +190,83 @@ export async function ensureSeededScrollerImages(): Promise<void> {
   }
 
   await ensureListingHasImages(config, await createListing.json());
+}
+
+// --- Detail-page seed (FE-3 / PRO-255) -------------------------------------
+//
+// The detail-page e2e needs a listing that is fully renderable on /listing/[id]:
+// a price, a short_description, feature tags and at least one image. Keep it in a
+// dedicated seed (its own external_url and image-id space) so it neither depends
+// on nor disturbs the feed seed above.
+
+const DETAIL_SEED_EXTERNAL_URL = 'https://e2e.seed.local/scroller-detail-listing';
+const DETAIL_SEED_ORIGINAL_LISTING_ID = 990000050;
+const DETAIL_IMAGE_SPACE: SeedImageSpace = {
+  originalImageIdBase: 990000050,
+  urlPrefix: 'https://e2e.seed.local/scroller-detail-image',
+};
+
+// The renderable core fields the detail page binds to. Applied idempotently so a
+// pre-existing or partially-seeded listing converges to the same content.
+const DETAIL_SEED_FIELDS = {
+  title: 'E2E Detail Seed Listing',
+  short_description: 'Bright and modern apartment with a private garden.',
+  price: 450000,
+  bedrooms: 2,
+  bathrooms: 1,
+  property_tags: 'Garden, Modern',
+} as const;
+
+/**
+ * Ensure a fully-renderable detail listing exists and return its enrichment-db
+ * id (the id the detail route is keyed on). Idempotent: reuses the fixed seed
+ * listing (keyed on external_url), refreshes its core fields, and tops up its
+ * images, so it is safe to call before every detail e2e run.
+ */
+export async function ensureSeededDetailListing(): Promise<{ id: number }> {
+  const config = getEnrichmentDbConfig();
+  const { baseUrl, headers } = config;
+
+  const lookup = await fetch(
+    `${baseUrl}/api/listings/external_url/?external_url=${encodeURIComponent(DETAIL_SEED_EXTERNAL_URL)}`,
+    { headers },
+  );
+
+  let listing: { id: number; images?: Array<{ image_data?: string | null }> };
+  if (lookup.ok) {
+    listing = await lookup.json();
+  } else if (lookup.status === 404) {
+    const estateAgentId = await getOrCreateEstateAgent(config);
+    const createListing = await fetch(`${baseUrl}/api/listings/`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        estate_agent_id: estateAgentId,
+        external_url: DETAIL_SEED_EXTERNAL_URL,
+        original_listing_id: DETAIL_SEED_ORIGINAL_LISTING_ID,
+        is_active: true,
+        ...DETAIL_SEED_FIELDS,
+      }),
+    });
+    if (!createListing.ok) {
+      throw new Error(`Failed to create detail seed listing (${await readError(createListing)})`);
+    }
+    listing = await createListing.json();
+  } else {
+    throw new Error(`Failed to look up detail seed listing (${await readError(lookup)})`);
+  }
+
+  // Refresh the core fields (scalar-only PUT leaves images untouched) so a
+  // listing seeded by an earlier run still has the fields the detail page reads.
+  const update = await fetch(`${baseUrl}/api/listings/${listing.id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(DETAIL_SEED_FIELDS),
+  });
+  if (!update.ok) {
+    throw new Error(`Failed to set detail seed fields (${await readError(update)})`);
+  }
+
+  await ensureListingHasImages(config, listing, DETAIL_IMAGE_SPACE);
+  return { id: listing.id };
 }

@@ -47,7 +47,10 @@ export async function fetchListingDetail(listingId: number): Promise<ListingDeta
 
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}/api/listings/${listingId}`, {
+    // The /detail endpoint (EDB-2) returns the ListingDetail contract: images
+    // ordered with is_primary/position and bounded payload size, which the
+    // detail page needs. The plain /listings/{id} endpoint carries no ordering.
+    response = await fetch(`${baseUrl}/api/listings/${listingId}/detail`, {
       headers,
       cache: 'no-store',
     });

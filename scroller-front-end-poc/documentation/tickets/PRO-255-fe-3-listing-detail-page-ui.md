@@ -1,0 +1,93 @@
+# PRO-255: [FE-3] Implement listing detail page UI and tests
+
+## Summary
+
+Replaced the `/listing/[id]` placeholder scaffold with the real detail page,
+rendered server-side from the enrichment-db `ListingDetail` payload (EDB-2). A
+pure mapper turns the payload into a presentational view-model — formatted GBP
+price, ordered carousel images (primary first, then `position`), a single-line
+location, `Garden`/`New` feature tags, and the `short_description` blurb — and
+the page hides any field that has no data so a sparse listing never leaves empty
+chrome. All derivation is unit-tested in isolation; the page wiring, the
+presentational component, and a Playwright detail render are covered too.
+
+Per the refined plan, the FE-2 server client was repointed from
+`/api/listings/{id}` to the `/api/listings/{id}/detail` endpoint (EDB-2): only
+`/detail` returns images carrying `is_primary`/`position`, which the
+"primary image first" ordering requires.
+
+## Decisions (from refinement)
+
+- **Blurb source** → harvested `short_description` (never `description_analysis`,
+  which is a `json.dumps` string in the orchestrator).
+- **`New` tag** → `first_seen` within **≤ 7 days** (`NEW_TAG_WINDOW_DAYS`).
+- **Price** → hardcoded GBP `£`, thousands separators, no decimals; the contract
+  has no currency field.
+
+## Data load approach
+
+The page is a server component already protected by the `(protected)` layout, so
+it calls the server-only `fetchListingDetail` directly (the same client the BFF
+route uses) rather than re-fetching its own `/api/listings/[id]` route over HTTP.
+An upstream 404 renders the route's `not-found`; any other failure bubbles to the
+route's `error` boundary. The BFF route remains for client-side callers.
+
+## Changes
+
+- `src/types/enrichment-db.ts`: firmed the loose `ListingDetail` into the typed
+  fields the page reads (`ListingDetail`, `ListingDetailImage`,
+  `ListingDetailLocation`, `ListingDetailAddress`); every field beyond `id` stays
+  optional/nullable.
+- `src/lib/listing-detail-view.ts` (new): `ListingDetailView` + pure helpers
+  `formatPrice`, `isNew`, `deriveTags`, `formatLocation`, `toCarouselImages`, and
+  the `mapListingToView` mapper.
+- `src/lib/enrichment-db-client.ts`: repointed `fetchListingDetail` to the
+  `/detail` endpoint.
+- `src/components/ListingDetailContent.tsx` (new): presentational detail body —
+  carousel, title, price, feature pills, beds/baths stats, location, description;
+  each section omitted when its value is null/empty.
+- `src/app/(protected)/listing/[id]/page.tsx`: fetch → map → render; keeps
+  `parseListingId` + `notFound()`; 404 → `notFound`, other errors rethrown.
+- `src/lib/listing-detail-view.test.ts` (new): helper + mapper unit tests
+  (price formatting, recency window incl. boundary, Garden/New derivation,
+  location join, image ordering/filtering/alt fallback, full + sparse mapping).
+- `src/components/ListingDetailContent.test.tsx` (new): RTL render tests
+  (full render, hidden empty fields, omitted stats/tags blocks, carousel empty
+  state).
+- `src/app/(protected)/listing/[id]/page.test.tsx`: rewritten from the scaffold
+  test to cover render, malformed ids (incl. unsafe-integer overflow), upstream
+  404 → not-found, and non-404 rethrow.
+- `src/lib/enrichment-db-client.test.ts`: updated URL assertions to `/detail`.
+- `tests/helpers/enrichment-db.ts`: parameterised the image seeders with a
+  per-seed id space and added `ensureSeededDetailListing()` (own external_url +
+  image-id space; idempotent; returns the enrichment-db id) for the detail e2e.
+- `tests/listing-detail.spec.ts` (new): logs in, seeds a renderable listing,
+  navigates to `/listing/{id}`, asserts the title, `£450,000` price, and a
+  carousel image.
+
+## Tests
+
+- Ran: `npx jest` in `scroller-front-end-poc`.
+- Result: PASS — 21 suites, 195 tests (was 18/142 before FE-2; new FE-3 work adds
+  three suites: view helpers, content component, rewritten page).
+- Ran: `npm run build` — PASS; `/listing/[id]` registered as a dynamic
+  (server-rendered) route, types and lint clean.
+- Ran: `npx playwright test --list tests/listing-detail.spec.ts` — the spec parses
+  and registers across chromium/firefox/webkit.
+- The full Playwright e2e is run in CI (it needs the app dev server, a login
+  backend, and a configured `ENRICHMENT_DB_API_KEY` to seed). enrichment-db (8200)
+  was reachable locally, but the app server and login backend were not wired up in
+  this environment, so the e2e was not executed locally — consistent with FE-2.
+
+## Documentation updated
+
+- `documentation/tickets/PRO-255-fe-3-listing-detail-page-ui.md`: this snapshot.
+- No `.env.example` change: FE-2 already documents `ENRICHMENT_DB_BASE_URL` /
+  `ENRICHMENT_DB_API_KEY`, and FE-3 introduces no new env.
+
+## Open questions
+
+- None blocking. `floor_area_sqft` and the nearest-station line remain out of
+  scope (EDB-4/EDB-5/ING-3 deferred) and are intentionally not rendered.
+- `Garden` is a best-effort `/garden/i` substring match on free-text
+  `property_tags`; revisit if a structured tag taxonomy lands.
