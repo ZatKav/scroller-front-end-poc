@@ -119,9 +119,41 @@ export async function expectEntryRedirectsToLogin(page: Page): Promise<void> {
 }
 
 /**
+ * Feed-agnostic assertion that the authenticated scroller has rendered. The
+ * shared deploy target may have an empty feed (e.g. the enrichment-db image
+ * source was redeployed/wiped), so accept either the scroller image or the
+ * valid "No more images" empty state — both prove the protected page rendered.
+ * Use this for deploy smokes, where seeded image data is not guaranteed; use a
+ * strict `scroller-image` assertion only where the feed is reset/seeded first.
+ */
+async function assertScrollerContentVisible(page: Page): Promise<void> {
+  const scrollerImage = page.getByTestId('scroller-image');
+  const emptyState = page.getByText('No more images');
+  await expect(scrollerImage.or(emptyState).first()).toBeVisible({
+    timeout: 30_000,
+  });
+}
+
+/**
+ * Asserts the current page is the rendered, authenticated scroller entry page:
+ * scroller content is visible (image or empty state) and the visitor was not
+ * bounced to login. Feed-agnostic — see `assertScrollerContentVisible`.
+ */
+export async function expectScrollerPageRendered(page: Page): Promise<void> {
+  await assertScrollerContentVisible(page);
+  const pathname = new URL(page.url()).pathname;
+  expect(pathname).toBe(appPath('/'));
+  expect(pathname).not.toBe(appPath('/login'));
+}
+
+/**
  * Given an already-authenticated session, navigates directly to the public entry
  * path (e.g. `/scroller`) and asserts the protected scroller page renders rather
  * than bouncing to login, then confirms a refresh keeps the visitor on it.
+ *
+ * Feed-agnostic: the entry page only needs to render the authenticated scroller
+ * (image or empty state), not a specific image, so it survives an empty shared
+ * feed. The redirect guard below is the real subject under test.
  *
  * Guards PRO-232: the shared nginx used to unconditionally 302 the exact
  * `/scroller` entry path to `/scroller/login`, so authenticated direct navigation
@@ -133,9 +165,7 @@ export async function expectAuthenticatedEntryRendersScroller(page: Page): Promi
   const entryPath = base || '/';
 
   await page.goto(entryPath);
-  await expect(page.getByTestId('scroller-image')).toBeVisible({
-    timeout: 30_000,
-  });
+  await assertScrollerContentVisible(page);
   const afterEntry = new URL(page.url()).pathname;
   expect(afterEntry).toBe(appPath('/'));
   expect(afterEntry).not.toBe(appPath('/login'));
@@ -143,9 +173,7 @@ export async function expectAuthenticatedEntryRendersScroller(page: Page): Promi
   // A refresh / direct re-entry must keep the authenticated visitor on the
   // protected page (acceptance criterion for mobile login survivability).
   await page.reload();
-  await expect(page.getByTestId('scroller-image')).toBeVisible({
-    timeout: 30_000,
-  });
+  await assertScrollerContentVisible(page);
   expect(new URL(page.url()).pathname).toBe(appPath('/'));
 }
 

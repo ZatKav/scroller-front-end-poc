@@ -62,8 +62,33 @@ the detail page UI and field mapping are FE-3.
   FE-2 section, so no change is made there from this PR.
 - `documentation/tickets/PRO-253-fe-2-listing-detail-bff-proxy.md`: this snapshot.
 
+## E2E test resilience (unrelated to FE-2 application code)
+
+CI E2E flagged failures on this branch. Investigation (ci-failure-scout) showed
+they are **not** caused by the FE-2 code — the feed path is untouched. Two
+distinct, pre-existing issues were addressed in the test layer:
+
+- **Test isolation:** `loginAndExpectAuthenticated` asserted `scroller-image`
+  before the tests reset interactions, so a feed depleted by a prior run failed
+  the login check before the reset ran. Gated that assertion behind
+  `options.expectScrollerImage` (default true); `login.spec.ts` now defers it
+  until after its reset+reload. (`tests/helpers/login.ts`, `tests/login.spec.ts`)
+- **Empty shared feed:** the CI `finder-enrichment-db` was redeployed and its
+  image data wiped, so the scroller stack-rank feed is empty even after a full
+  interaction reset ("No more images"), failing every `scroller-image`
+  assertion across branches. A front-end change cannot make an image appear.
+  The **deploy smoke** (`deploy-login.smoke.spec.ts`, main-only, no DB creds)
+  was made feed-agnostic: it asserts the authenticated scroller rendered (image
+  **or** the valid empty state) and that the visitor is not bounced to login
+  (PRO-232 guard), rather than requiring a specific image. The `login.spec.ts`
+  feed/swipe tests intentionally stay strict (they need seeded images) and will
+  remain red until the CI enrichment-db feed is re-seeded — a backend/infra
+  follow-up, tracked separately.
+
 ## Open questions
 
-- None. EDB-2 dependency is non-blocking for FE-2: the route works against today's
-  `GET /api/listings/{id}`; EDB-2 only enriches the payload shape, which the loose
-  `ListingDetail` type tolerates.
+- None for the FE-2 application code. EDB-2 dependency is non-blocking: the route
+  works against today's `GET /api/listings/{id}`; EDB-2 only enriches the payload
+  shape, which the loose `ListingDetail` type tolerates.
+- Backend follow-up (not in scope here): re-seed the CI enrichment-db image feed
+  so the strict `login.spec.ts` scroller/swipe E2E can pass.
