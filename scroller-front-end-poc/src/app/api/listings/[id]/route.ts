@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { EnrichmentDbClientError, fetchListingDetail } from '@/lib/enrichment-db-client';
+import {
+  EnrichmentDbClientError,
+  EnrichmentDbConfigError,
+  fetchListingDetail,
+} from '@/lib/enrichment-db-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +48,12 @@ export async function GET(
     const listing = await fetchListingDetail(listingId);
     return NextResponse.json(listing);
   } catch (error) {
+    // Server misconfiguration (e.g. missing API key) is a 500, distinct from a
+    // genuine upstream outage (502), so deploy problems are not masked.
+    if (error instanceof EnrichmentDbConfigError) {
+      console.error('Listing detail BFF misconfigured:', error.message);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
     if (error instanceof EnrichmentDbClientError) {
       if (error.status === 404) {
         return NextResponse.json({ error: 'Listing not found' }, { status: 404 });

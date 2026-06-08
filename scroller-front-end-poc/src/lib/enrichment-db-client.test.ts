@@ -1,4 +1,4 @@
-import { fetchListingDetail } from '@/lib/enrichment-db-client';
+import { EnrichmentDbConfigError, fetchListingDetail } from '@/lib/enrichment-db-client';
 
 const mockFetch = jest.fn();
 const originalBaseUrl = process.env.ENRICHMENT_DB_BASE_URL;
@@ -72,19 +72,11 @@ describe('fetchListingDetail', () => {
     });
   });
 
-  it('omits the Authorization header when no api key is configured', async () => {
+  it('throws a config error and makes no request when no api key is configured', async () => {
     delete process.env.ENRICHMENT_DB_API_KEY;
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ id: 1 }),
-    } as Response);
 
-    await fetchListingDetail(1);
-
-    expect(mockFetch).toHaveBeenCalledWith('http://enrichment.local/api/listings/1', {
-      headers: { 'Content-Type': 'application/json' },
-      cache: 'no-store',
-    });
+    await expect(fetchListingDetail(1)).rejects.toBeInstanceOf(EnrichmentDbConfigError);
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('falls back to the default base url when none is configured', async () => {

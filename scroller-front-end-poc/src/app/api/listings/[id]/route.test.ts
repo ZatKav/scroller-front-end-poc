@@ -16,7 +16,11 @@ jest.mock('@/lib/enrichment-db-client', () => {
 });
 
 import { verifyToken } from '@/lib/auth';
-import { EnrichmentDbClientError, fetchListingDetail } from '@/lib/enrichment-db-client';
+import {
+  EnrichmentDbClientError,
+  EnrichmentDbConfigError,
+  fetchListingDetail,
+} from '@/lib/enrichment-db-client';
 import { GET } from './route';
 
 const mockVerifyToken = verifyToken as jest.Mock;
@@ -70,7 +74,7 @@ describe('GET /api/listings/[id]', () => {
   });
 
   describe('id validation', () => {
-    it.each(['not-a-number', '0', '-1', '1.5'])(
+    it.each(['not-a-number', '0', '-1', '1.5', '99999999999999999999'])(
       'returns 400 for malformed id %s without calling upstream',
       async (id) => {
         mockVerifyToken.mockReturnValueOnce(MOCK_USER);
@@ -136,6 +140,20 @@ describe('GET /api/listings/[id]', () => {
       const response = await GET(makeRequest('valid-token'), context('123'));
 
       expect(response.status).toBe(502);
+    });
+
+    it('maps a server misconfiguration to a 500 distinct from upstream 502', async () => {
+      mockVerifyToken.mockReturnValueOnce(MOCK_USER);
+      mockFetchListingDetail.mockRejectedValueOnce(
+        new EnrichmentDbConfigError('ENRICHMENT_DB_API_KEY is not configured'),
+      );
+
+      const response = await GET(makeRequest('valid-token'), context('123'));
+
+      expect(response.status).toBe(500);
+      const body = await response.json();
+      expect(body).toEqual({ error: 'Internal server error' });
+      expect(JSON.stringify(body)).not.toContain('ENRICHMENT_DB_API_KEY');
     });
 
     it('maps an unexpected error to a 500', async () => {
