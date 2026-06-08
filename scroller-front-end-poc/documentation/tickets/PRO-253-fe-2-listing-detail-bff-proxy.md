@@ -73,22 +73,26 @@ distinct, pre-existing issues were addressed in the test layer:
   the login check before the reset ran. Gated that assertion behind
   `options.expectScrollerImage` (default true); `login.spec.ts` now defers it
   until after its reset+reload. (`tests/helpers/login.ts`, `tests/login.spec.ts`)
-- **Empty shared feed:** the CI `finder-enrichment-db` was redeployed and its
-  image data wiped, so the scroller stack-rank feed is empty even after a full
-  interaction reset ("No more images"), failing every `scroller-image`
-  assertion across branches. A front-end change cannot make an image appear.
-  The **deploy smoke** (`deploy-login.smoke.spec.ts`, main-only, no DB creds)
-  was made feed-agnostic: it asserts the authenticated scroller rendered (image
-  **or** the valid empty state) and that the visitor is not bounced to login
-  (PRO-232 guard), rather than requiring a specific image. The `login.spec.ts`
-  feed/swipe tests intentionally stay strict (they need seeded images) and will
-  remain red until the CI enrichment-db feed is re-seeded — a backend/infra
-  follow-up, tracked separately.
+- **Empty shared feed (two-pronged fix):** the CI `finder-enrichment-db` was
+  redeployed and its image data wiped, so the scroller stack-rank feed is empty
+  even after a full interaction reset ("No more images"), failing every
+  `scroller-image` assertion across branches.
+  - **Strict feed tests now self-seed:** `tests/helpers/enrichment-db.ts`
+    (`ensureSeededScrollerImage`) idempotently creates an estate agent + a
+    listing (keyed on a fixed `external_url`) + one renderable image (valid JPEG
+    bytes + a valid v2 "photo" `image_summary`, the only shape stack-rank treats
+    as eligible). `login.spec.ts` calls it before the reset so the feed is
+    non-empty regardless of ambient data. Requires `ENRICHMENT_DB_BASE_URL` /
+    `ENRICHMENT_DB_API_KEY`, now set on the CI `test-e2e` job (`.woodpecker.yml`).
+    Validated locally end-to-end: seed → enrichment-db → interactions-db
+    stack-rank returns the image.
+  - **Deploy smoke made feed-agnostic:** `deploy-login.smoke.spec.ts` (main-only,
+    no DB creds, cannot seed) asserts the authenticated scroller rendered (image
+    **or** the valid empty state) and that the visitor is not bounced to login
+    (PRO-232 guard), rather than requiring a specific image.
 
 ## Open questions
 
 - None for the FE-2 application code. EDB-2 dependency is non-blocking: the route
   works against today's `GET /api/listings/{id}`; EDB-2 only enriches the payload
   shape, which the loose `ListingDetail` type tolerates.
-- Backend follow-up (not in scope here): re-seed the CI enrichment-db image feed
-  so the strict `login.spec.ts` scroller/swipe E2E can pass.

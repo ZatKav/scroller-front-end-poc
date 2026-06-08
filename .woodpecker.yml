@@ -42,6 +42,10 @@ steps:
       E2E_LOGIN_PASSWORD: jackNgrok2026!
       SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL: http://host.containers.internal:8400
       SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY: a9e08181c6f01244edc35813e387102bd9c889d014d10d27d940d62d7aaf827d
+      # Used by the feed E2E tests to seed a renderable stack-rank image when the
+      # shared enrichment-db (the feed source) has been redeployed/wiped.
+      ENRICHMENT_DB_BASE_URL: http://host.containers.internal:8200
+      ENRICHMENT_DB_API_KEY: a9e08181c6f01244edc35813e387102bd9c889d014d10d27d940d62d7aaf827d
     commands:
       - |
         mkdir -p ci-logs
