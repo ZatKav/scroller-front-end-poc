@@ -177,3 +177,59 @@ export async function ensureSeededScrollerImages(): Promise<void> {
 
   await ensureListingHasImages(config, await createListing.json());
 }
+
+/**
+ * Best-effort teardown for the fixed E2E seed listing. The estate agent is
+ * intentionally left alone because it may be shared with real data.
+ */
+export async function deleteSeededScrollerListing(): Promise<void> {
+  let config: EnrichmentDbConfig;
+  try {
+    config = getEnrichmentDbConfig();
+  } catch (error) {
+    console.warn(
+      `Skipping E2E seed listing cleanup: ${error instanceof Error ? error.message : error}`,
+    );
+    return;
+  }
+
+  const { baseUrl, headers } = config;
+  try {
+    const lookup = await fetch(
+      `${baseUrl}/api/listings/external_url/?external_url=${encodeURIComponent(SEED_EXTERNAL_URL)}`,
+      { headers },
+    );
+
+    if (lookup.status === 404) {
+      return;
+    }
+    if (!lookup.ok) {
+      console.warn(
+        `Skipping E2E seed listing cleanup after lookup failed (${await readError(lookup)})`,
+      );
+      return;
+    }
+
+    const listing = await lookup.json();
+    if (typeof listing?.id !== 'number') {
+      console.warn(
+        'Skipping E2E seed listing cleanup: lookup response did not include a numeric id.',
+      );
+      return;
+    }
+
+    const deleteResponse = await fetch(`${baseUrl}/api/listings/${listing.id}`, {
+      method: 'DELETE',
+      headers,
+    });
+    if (!deleteResponse.ok && deleteResponse.status !== 404) {
+      console.warn(
+        `E2E seed listing cleanup failed (${await readError(deleteResponse)})`,
+      );
+    }
+  } catch (error) {
+    console.warn(
+      `E2E seed listing cleanup failed: ${error instanceof Error ? error.message : error}`,
+    );
+  }
+}

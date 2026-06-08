@@ -46,6 +46,7 @@ CI/deploy login checks also require:
 - `E2E_LOGIN_PASSWORD` (defaults to `jackNgrok2026!` in CI)
 - `SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL` (for direct Playwright Node-side verification calls)
 - `SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY` (required by both Next proxy routes and direct Playwright verification calls)
+- `ENRICHMENT_DB_BASE_URL` and `ENRICHMENT_DB_API_KEY` (required by strict scroller feed E2E seeding and teardown)
 
 ## Scroller customer interactions DB client
 
@@ -93,6 +94,11 @@ CI-specific test commands used by Woodpecker:
 - `npm run test:allure:unit` emits unit-test Allure results (`scroller-front-end-poc/allure-results-unit`).
 - `npm run test:e2e:ci` runs the pre-deploy login + scroller interaction Playwright check on Chromium against a local app server and emits e2e Allure results (`scroller-front-end-poc/allure-results-e2e`).
 - `npm run test:e2e:deploy-smoke` runs the post-deploy host login smoke check against `http://host.containers.internal:8410`.
+
+The strict login/scroller Playwright spec seeds a fixed `E2E Seed Listing` in
+finder-enrichment-db before exercising the feed, then deletes only that listing
+in `afterAll`. The delete cascades the seed images/floorplans in enrichment-db
+and intentionally leaves the estate agent untouched.
 
 ## Podman deployment
 
