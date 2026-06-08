@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { loginAndExpectAuthenticated } from './helpers/login';
-import { ensureSeededScrollerImages } from './helpers/enrichment-db';
+import {
+  deleteSeededScrollerListing,
+  ensureSeededScrollerImages,
+} from './helpers/enrichment-db';
 import {
   deleteCustomerImageInteractions,
   getCustomerImageInteractions,
@@ -8,6 +11,10 @@ import {
 } from './helpers/scroller-customer-interactions-db';
 
 const RETIRED_JACK_PASSWORD = 'password123';
+
+test.afterAll(async () => {
+  await deleteSeededScrollerListing();
+});
 
 function isStackRankWindowResponse(response: Response, skip: number, limit: number): boolean {
   const url = new URL(response.url());
