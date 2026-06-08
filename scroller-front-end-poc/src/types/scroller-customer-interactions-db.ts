@@ -13,6 +13,7 @@ export interface CustomerImageInteraction extends Omit<CustomerImageInteractionC
 
 export interface StackRankImage {
   id: number;
+  listing_id?: number | null;
   image_data: string | null;
   image_summary: string | null;
   final_score?: number | null;

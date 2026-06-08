@@ -7,7 +7,7 @@ import {
 } from '@/lib/stack-rank-session';
 
 const SAMPLE_IMAGES = [
-  { id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
+  { id: 1, listing_id: 2001, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' },
 ];
 
 afterEach(() => {
@@ -43,7 +43,9 @@ describe('stack-rank-session', () => {
     jest.setSystemTime(new Date('2026-03-25T10:00:00Z'));
 
     for (let userId = 1; userId <= STACK_RANK_SESSION_MAX_ENTRIES + 1; userId += 1) {
-      setStackRank(userId, [{ id: userId, image_data: null, image_summary: `Image ${userId}` }]);
+      setStackRank(userId, [
+        { id: userId, listing_id: 2000 + userId, image_data: null, image_summary: `Image ${userId}` },
+      ]);
     }
 
     expect(getStackRank(1)).toBeUndefined();

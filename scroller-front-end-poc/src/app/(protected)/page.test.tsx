@@ -68,6 +68,7 @@ const mockFetch = jest.fn();
 function makeImage(id: number): StackRankImage {
   return {
     id,
+    listing_id: 2000 + id,
     image_data: `data:image/png;base64,${id}`,
     image_summary: `Image ${id}`,
   };
