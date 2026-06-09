@@ -89,20 +89,24 @@ route's `error` boundary. The BFF route remains for client-side callers.
 
 The first CI run failed only on the new detail e2e: navigating to `/listing/{id}`
 rendered the page's *correct* error states ("Listing not found" / "Listing could
-not load"), i.e. the BFF's server-side read of enrichment-db failed even though
-the seed (same env) succeeded. Root cause was the `test-e2e` job reaching the
-host-published backends via `host.containers.internal`, whose DNS resolution is
-unreliable from this step (notably the Next dev server's server-side fetches).
-Switched `ENRICHMENT_DB_BASE_URL` and `SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL`
-to `http://127.0.0.1:{port}` in `.woodpecker.yml`, matching how
-`scroller-customer-interactions-db`'s CI already reaches enrichment-db
-(`http://127.0.0.1:8200`). Requires a CI run to confirm.
+not load"). That was the deployed enrichment-db predating EDB-2's `/detail`
+route; it has since been redeployed and now serves `/api/listings/{id}/detail`.
+
+An interim attempt switched the `test-e2e` backend base URLs to
+`http://127.0.0.1:{port}`. That was wrong: the `test-e2e` step runs *inside* the
+Playwright container, where `127.0.0.1` is the container's own loopback, so the
+host-published `:8200`/`:8400` services were unreachable (`ECONNREFUSED`) from
+both the seed helper and the BFF read. (The `127.0.0.1` form in
+`scroller-customer-interactions-db`'s CI works there only because that pipeline
+starts its services *inside* the test container.) Reverted to
+`host.containers.internal`, the same alias the deploy/smoke steps already use for
+`:8410`. Requires a CI run to confirm.
 
 ## Documentation updated
 
 - `documentation/tickets/PRO-255-fe-3-listing-detail-page-ui.md`: this snapshot.
-- `.woodpecker.yml`: `test-e2e` backend base URLs moved off
-  `host.containers.internal` to `127.0.0.1` (see above).
+- `.woodpecker.yml`: `test-e2e` backend base URLs use `host.containers.internal`
+  (see above).
 - No `.env.example` change: FE-2 already documents `ENRICHMENT_DB_BASE_URL` /
   `ENRICHMENT_DB_API_KEY`, and FE-3 introduces no new env.
 
