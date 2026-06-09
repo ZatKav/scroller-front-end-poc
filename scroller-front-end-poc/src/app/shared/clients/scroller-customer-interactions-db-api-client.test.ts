@@ -160,7 +160,9 @@ describe('scrollerCustomerInteractionsDbApiClient', () => {
 
   describe('getStackRankImages', () => {
     it('fetches stack-rank image cards', async () => {
-      const mockResponse = [{ id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'Summary' }];
+      const mockResponse = [
+        { id: 1, listing_id: 2001, image_data: 'data:image/png;base64,AAA=', image_summary: 'Summary' },
+      ];
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockResponse),
