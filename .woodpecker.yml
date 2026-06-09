@@ -40,10 +40,18 @@ steps:
       JWT_SECRET_KEY: f74ed097f9240073570d2534bb8e4184
       E2E_LOGIN_USERNAME: jack
       E2E_LOGIN_PASSWORD: jackNgrok2026!
+      # Reach the host-published backend services over host.containers.internal.
+      # This step runs inside the Playwright container, where 127.0.0.1 is the
+      # container's own loopback (not the host), so the host-published :8200/:8400
+      # services are only reachable via the host.containers.internal alias -- the
+      # same alias the deploy/smoke steps use for :8410. (The 127.0.0.1 form that
+      # scroller-customer-interactions-db's CI uses works there only because that
+      # pipeline starts its services *inside* the test container.)
       SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL: http://host.containers.internal:8400
       SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY: a9e08181c6f01244edc35813e387102bd9c889d014d10d27d940d62d7aaf827d
-      # Used by the feed E2E tests to seed a renderable stack-rank image when the
-      # shared enrichment-db (the feed source) has been redeployed/wiped.
+      # Used by the feed + detail E2E tests to seed renderable listings/images
+      # when the shared enrichment-db has been redeployed/wiped, and by the detail
+      # page's server-side BFF read.
       ENRICHMENT_DB_BASE_URL: http://host.containers.internal:8200
       ENRICHMENT_DB_API_KEY: a9e08181c6f01244edc35813e387102bd9c889d014d10d27d940d62d7aaf827d
     commands:

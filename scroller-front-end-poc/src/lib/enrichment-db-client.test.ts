@@ -35,7 +35,7 @@ describe('fetchListingDetail', () => {
 
     const result = await fetchListingDetail(123);
 
-    expect(mockFetch).toHaveBeenCalledWith('http://enrichment.local/api/listings/123', {
+    expect(mockFetch).toHaveBeenCalledWith('http://enrichment.local/api/listings/123/detail', {
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer test-api-key',
@@ -89,7 +89,7 @@ describe('fetchListingDetail', () => {
     await fetchListingDetail(5);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8200/api/listings/5',
+      'http://localhost:8200/api/listings/5/detail',
       expect.any(Object),
     );
   });
