@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import type {
   StackRankImage,
   StackRankProfileWeights,
 } from '@/types/scroller-customer-interactions-db';
 import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
-import { Maximize, Minimize } from 'lucide-react';
+import { appPath } from '@/lib/base-path';
+import { ExternalLink, Maximize, Minimize } from 'lucide-react';
 
 // Horizontal swipe gesture tuning for the image area (PRO-236). A swipe only
 // counts as a Skip/Like when it travels at least SWIPE_MIN_DISTANCE_PX
@@ -274,6 +276,11 @@ export default function ImageScroller({
   }
 
   const currentImage = images[currentIndex];
+  // The detail route is keyed on the enrichment-db listing id carried by the
+  // card. When it is absent we render no View-listing affordance at all, rather
+  // than a disabled or empty link, so there is never a broken /listing/null
+  // href (PRO-256).
+  const listingId = currentImage.listing_id;
 
   const stackRankWeights = {
     profile_weights: profileWeights,
@@ -446,6 +453,25 @@ export default function ImageScroller({
           disabled={submitting}
           className={`absolute inset-y-0 right-0 w-1/2 bg-transparent cursor-pointer disabled:cursor-not-allowed ${immersive ? 'focus:outline focus:outline-2 focus:outline-blue-500' : 'focus:outline-none'}`}
         />
+        {/* View-listing overlay. Links to the listing detail route keyed on the
+            enrichment-db listing id the card carries (PRO-256). It mirrors the
+            fullscreen toggle: sits above the Skip/Like tap zones (z-10) and
+            stops the tap from also reaching them, so opening the detail page
+            neither records a Skip/Like nor advances the card. Positioned
+            top-left so it never collides with the top-right fullscreen toggle.
+            Hidden in the immersive view, like the Skip/Like buttons, and not
+            rendered at all when the card has no listing id. */}
+        {!immersive && listingId != null && (
+          <Link
+            href={appPath(`/listing/${listingId}`)}
+            data-testid="view-listing-button"
+            aria-label="View listing"
+            onClick={(event) => event.stopPropagation()}
+            className="absolute top-2 left-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60 focus:outline focus:outline-2 focus:outline-blue-500"
+          >
+            <ExternalLink className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        )}
         {/* Fullscreen toggle. Shown on any Fullscreen-capable browser (hidden on
             iPhone Safari, which lacks the element Fullscreen API). It is the entry
             point to the immersive view on tablet/desktop and stays visible while

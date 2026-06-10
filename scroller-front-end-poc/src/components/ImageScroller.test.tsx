@@ -1128,3 +1128,94 @@ describe('ImageScroller', () => {
     });
   });
 });
+
+describe('view listing button (PRO-256)', () => {
+  // Cards carrying an enrichment-db listing id; the default IMAGES fixture has
+  // none, which is itself one of the cases under test.
+  const IMAGES_WITH_LISTING = [
+    { id: 1, listing_id: 42, image_data: 'AAAA', image_summary: 'Nice house' },
+    { id: 2, listing_id: 99, image_data: 'BBBB', image_summary: null },
+  ];
+
+  it('links to the listing detail route for the current card listing id', () => {
+    render(<ImageScroller images={IMAGES_WITH_LISTING} customerId={CUSTOMER_ID} />);
+
+    const link = screen.getByTestId('view-listing-button');
+    // No NEXT_PUBLIC_BASE_PATH is set under test, so appPath leaves the route
+    // unprefixed; the base-path prefixing itself is covered by base-path.test.ts.
+    expect(link).toHaveAttribute('href', '/listing/42');
+    expect(link).toHaveAccessibleName('View listing');
+  });
+
+  it('does not render the control when the card has no listing id', () => {
+    // The default IMAGES fixture has no listing_id.
+    render(<ImageScroller images={IMAGES} customerId={CUSTOMER_ID} />);
+
+    expect(screen.queryByTestId('view-listing-button')).not.toBeInTheDocument();
+    // No link pointing at the detail route, broken or otherwise.
+    expect(screen.queryByRole('link', { name: 'View listing' })).not.toBeInTheDocument();
+  });
+
+  it('does not render the control when listing_id is explicitly null', () => {
+    render(
+      <ImageScroller
+        images={[{ id: 1, listing_id: null, image_data: 'AAAA', image_summary: null }]}
+        customerId={CUSTOMER_ID}
+      />,
+    );
+
+    expect(screen.queryByTestId('view-listing-button')).not.toBeInTheDocument();
+  });
+
+  it('does not record an interaction or advance the card when activated', async () => {
+    const user = userEvent.setup();
+    const onAdvance = jest.fn();
+    render(
+      <ImageScroller
+        images={IMAGES_WITH_LISTING}
+        customerId={CUSTOMER_ID}
+        onAdvance={onAdvance}
+      />,
+    );
+
+    // jsdom does not implement navigation, so an anchor click logs a benign
+    // "Not implemented: navigation" error rather than navigating; swallow it so
+    // the assertions below stay focused on the interaction/advance behaviour.
+    const navigationErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    await act(async () => {
+      await user.click(screen.getByTestId('view-listing-button'));
+    });
+    navigationErrorSpy.mockRestore();
+
+    expect(mockCreateInteraction).not.toHaveBeenCalled();
+    expect(onAdvance).not.toHaveBeenCalled();
+    // Still on the first card.
+    expect(screen.getByRole('img')).toHaveAttribute('src', 'data:image/jpeg;base64,AAAA');
+  });
+
+  it('hides the control in the immersive view', () => {
+    const originalMatchMedia = window.matchMedia;
+    // Report mobile landscape so the component enters the immersive view, where
+    // the Skip/Like buttons are hidden and the View-listing control follows.
+    window.matchMedia = jest.fn().mockReturnValue({
+      matches: true,
+      media: '(orientation: landscape) and (max-height: 600px)',
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    });
+
+    try {
+      render(<ImageScroller images={IMAGES_WITH_LISTING} customerId={CUSTOMER_ID} />);
+      // Confirm we really are immersive (Skip/Like row hidden) before asserting
+      // the View-listing control is gone too.
+      expect(screen.getByText('Skip').closest('div')).toHaveClass('hidden');
+      expect(screen.queryByTestId('view-listing-button')).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+});
