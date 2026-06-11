@@ -7,7 +7,6 @@ import type {
   StackRankProfileWeights,
 } from '@/types/scroller-customer-interactions-db';
 import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
-import { appPath } from '@/lib/base-path';
 import { ExternalLink, Maximize, Minimize } from 'lucide-react';
 
 // Horizontal swipe gesture tuning for the image area (PRO-236). A swipe only
@@ -463,7 +462,7 @@ export default function ImageScroller({
             rendered at all when the card has no listing id. */}
         {!immersive && listingId != null && (
           <Link
-            href={appPath(`/listing/${listingId}`)}
+            href={`/listing/${listingId}`}
             data-testid="view-listing-button"
             aria-label="View listing"
             onClick={(event) => event.stopPropagation()}

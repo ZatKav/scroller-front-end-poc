@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import * as React from 'react';
 import ImageScroller from './ImageScroller';
 
 jest.mock('@/app/shared/clients/scroller-customer-interactions-db-api-client', () => ({
@@ -1130,6 +1131,18 @@ describe('ImageScroller', () => {
 });
 
 describe('view listing button (PRO-256)', () => {
+  const ORIGINAL_BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH;
+
+  afterEach(() => {
+    if (ORIGINAL_BASE_PATH === undefined) {
+      delete process.env.NEXT_PUBLIC_BASE_PATH;
+    } else {
+      process.env.NEXT_PUBLIC_BASE_PATH = ORIGINAL_BASE_PATH;
+    }
+    jest.dontMock('react');
+    jest.resetModules();
+  });
+
   // Cards carrying an enrichment-db listing id; the default IMAGES fixture has
   // none, which is itself one of the cases under test.
   const IMAGES_WITH_LISTING = [
@@ -1141,10 +1154,27 @@ describe('view listing button (PRO-256)', () => {
     render(<ImageScroller images={IMAGES_WITH_LISTING} customerId={CUSTOMER_ID} />);
 
     const link = screen.getByTestId('view-listing-button');
-    // No NEXT_PUBLIC_BASE_PATH is set under test, so appPath leaves the route
-    // unprefixed; the base-path prefixing itself is covered by base-path.test.ts.
     expect(link).toHaveAttribute('href', '/listing/42');
     expect(link).toHaveAccessibleName('View listing');
+  });
+
+  it('keeps the href base-path-relative when NEXT_PUBLIC_BASE_PATH is configured', () => {
+    process.env.NEXT_PUBLIC_BASE_PATH = '/scroller';
+    jest.resetModules();
+    jest.doMock('react', () => React);
+    // Re-import the component after setting the base path so a future appPath()
+    // reintroduction would pick up /scroller and be caught by this assertion.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const BasePathImageScroller = require('./ImageScroller').default as typeof ImageScroller;
+
+    render(<BasePathImageScroller images={IMAGES_WITH_LISTING} customerId={CUSTOMER_ID} />);
+
+    const link = screen.getByTestId('view-listing-button');
+    // Next.js Link applies the configured basePath at navigation time. Passing a
+    // pre-prefixed href here would produce /scroller/scroller/listing/:id.
+    expect(link).toHaveAttribute('href', '/listing/42');
+    expect(link.getAttribute('href')).not.toContain('/scroller/scroller');
+    jest.dontMock('react');
   });
 
   it('does not render the control when the card has no listing id', () => {
