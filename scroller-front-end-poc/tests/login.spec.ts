@@ -12,7 +12,21 @@ import {
 
 const RETIRED_JACK_PASSWORD = 'password123';
 
+// Captured on login so afterAll can clear the interactions these smokes record;
+// left-over interactions poison the shared user's stack-rank preference profile
+// and reference seed images that the listing teardown below deletes.
+let interactionsCleanupUserId: number | undefined;
+
 test.afterAll(async () => {
+  if (interactionsCleanupUserId !== undefined) {
+    try {
+      await deleteCustomerImageInteractions(interactionsCleanupUserId);
+    } catch (error) {
+      console.warn(
+        `E2E interactions cleanup failed: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
   await deleteSeededScrollerListing();
 });
 
@@ -57,6 +71,7 @@ test('pre-deploy login check passes with valid credentials', async ({ page }) =>
   // can be exhausted by prior runs, so asserting it inside the login helper
   // would fail before we get a chance to repopulate it.
   const user = await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  interactionsCleanupUserId = user.id;
 
   // Guarantee the feed has at least one renderable image. The shared CI
   // enrichment-db (the stack-rank image source) can be redeployed/wiped, leaving
@@ -152,6 +167,7 @@ test('mobile swipes record persisted Like and Skip interactions', async ({ page,
   // Defer the scroller-image assertion until after the reset below (see the
   // button-based smoke above for the rationale).
   const user = await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  interactionsCleanupUserId = user.id;
 
   // Seed a renderable feed image (idempotent) so the test does not depend on
   // ambient enrichment-db data, then reset so the queue is fully populated
