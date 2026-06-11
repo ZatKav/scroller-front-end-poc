@@ -15,7 +15,21 @@ import {
 // carries. Seeded stack-rank cards always have a listing_id, so the control is
 // present on the feed these tests drive.
 
+// Captured on login so afterAll can clear the interactions these tests record;
+// left-over interactions poison the shared user's stack-rank preference profile
+// and reference seed images that the listing teardown below deletes.
+let interactionsCleanupUserId: number | undefined;
+
 test.afterAll(async () => {
+  if (interactionsCleanupUserId !== undefined) {
+    try {
+      await deleteCustomerImageInteractions(interactionsCleanupUserId);
+    } catch (error) {
+      console.warn(
+        `E2E interactions cleanup failed: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
   await deleteSeededScrollerListing();
 });
 
@@ -25,6 +39,7 @@ test('view-listing control navigates to the listing detail route', async ({ page
   // Defer the scroller-image assertion until after the reset below (the queue
   // can be exhausted by prior runs); see login.spec.ts for the rationale.
   const user = await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  interactionsCleanupUserId = user.id;
 
   // Seed a renderable, stack-rank-eligible card (which carries a listing_id),
   // then reset this user's interactions so the queue starts fully populated.
@@ -50,6 +65,7 @@ test('view-listing control does not disturb Skip/Like recording', async ({ page 
   test.setTimeout(60000);
 
   const user = await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  interactionsCleanupUserId = user.id;
 
   await ensureSeededScrollerImages();
   await deleteCustomerImageInteractions(user.id);
