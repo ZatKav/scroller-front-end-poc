@@ -77,4 +77,12 @@ describe('ListingDetailContent', () => {
       screen.getByRole('heading', { name: 'Riverside Apartment' }),
     ).toBeTruthy();
   });
+
+  it('links to the listing discovery flow without pre-applying the base path', () => {
+    render(<ListingDetailContent view={makeView()} />);
+
+    expect(
+      screen.getByRole('link', { name: 'Show me something else' }).getAttribute('href'),
+    ).toBe('/listings');
+  });
 });

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import ListingImageCarousel from '@/components/ListingImageCarousel';
 import type { ListingDetailView } from '@/lib/listing-detail-view';
 
@@ -100,6 +101,13 @@ export default function ListingDetailContent({ view, footer }: ListingDetailCont
             </p>
           </section>
         )}
+
+        <Link
+          href="/listings"
+          className="mx-auto inline-flex min-h-11 items-center justify-center rounded-lg bg-gray-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gray-950"
+        >
+          Show me something else
+        </Link>
 
         {footer}
       </section>
