@@ -195,14 +195,6 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
         >
           Like
         </button>
-        <button
-          type="button"
-          onClick={advanceQueue}
-          disabled={submitting}
-          className="min-w-28 rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Next
-        </button>
       </div>
       {loadingMore && (
         <p role="status" className="text-center text-sm text-gray-600">

@@ -21,7 +21,7 @@ listing, then use `/scroller/listings/{listing_id}` as the customer advances.
 - Add plural `/listings` and `/listings/[id]` flow routes that remain base-path-relative.
 - Load the authenticated customer's listing stack-rank queue from the PRO-152 BFF/API dependency.
 - Render listing detail content through the existing listing detail view path.
-- Expose `Skip`, `Like`, and `Next`; persist only `Skip` and `Like` using the listing action contract.
+- Expose `Skip` and `Like` actions that both persist through the listing action contract.
 - Show an in-flow terminal state when there are no more listings.
 - Preserve protected-route behavior for unauthenticated visitors through the existing protected layout.
 
@@ -44,7 +44,6 @@ listing, then use `/scroller/listings/{listing_id}` as the customer advances.
   subsequent ranked listings.
 - `Skip` records `action: 0` against `/customer-listing-interactions` and advances.
 - `Like` records `action: 1` against `/customer-listing-interactions` and advances.
-- `Next` advances the queue without recording a preference.
 - The flow shows `No more listings` when the queue is exhausted.
 
 ## Validation
@@ -65,7 +64,7 @@ listing, then use `/scroller/listings/{listing_id}` as the customer advances.
 - `scroller-front-end-poc/src/app/(protected)/listings/[id]/loading.tsx`: Reused the standalone listing detail loading state.
 - `scroller-front-end-poc/src/app/(protected)/listings/[id]/error.tsx`: Reused the standalone listing detail error boundary with an explicit client boundary.
 - `scroller-front-end-poc/src/app/(protected)/listings/[id]/not-found.tsx`: Reused the standalone listing detail not-found state.
-- `scroller-front-end-poc/src/components/ListingFlow.tsx`: Added queue loading, URL replacement, Skip/Like persistence, Next advancement, and terminal state behavior.
+- `scroller-front-end-poc/src/components/ListingFlow.tsx`: Added queue loading, URL replacement, Skip/Like persistence, and terminal state behavior.
 - `scroller-front-end-poc/src/components/ListingFlow.test.tsx`: Added listing-flow route, queue, action, and terminal state coverage.
 - `scroller-front-end-poc/src/components/ListingDetailContent.tsx`: Added an optional footer slot so flow controls render inside the listing detail layout.
 - `scroller-front-end-poc/src/app/(protected)/listings/page.test.tsx`: Added plural route smoke coverage.

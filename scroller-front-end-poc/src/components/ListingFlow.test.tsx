@@ -56,6 +56,9 @@ describe('ListingFlow', () => {
 
     expect(screen.getByText('Loading listings...')).toBeTruthy();
     expect(await screen.findByRole('heading', { name: 'Listing 101' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Skip' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Like' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
     expect(mockFetch).toHaveBeenCalledWith('/api/listings/stack-rank?limit=4');
     await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/101'));
   });
@@ -115,28 +118,6 @@ describe('ListingFlow', () => {
     expect(await screen.findByRole('heading', { name: 'Listing 302' })).toBeTruthy();
   });
 
-  it('advances with Next without recording a listing preference', async () => {
-    const user = userEvent.setup();
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ listings: [makeListing(402)] }),
-    } as Response).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ listings: [] }),
-    } as Response);
-
-    render(<ListingFlow initialListing={makeListing(401)} />);
-
-    await screen.findByRole('heading', { name: 'Listing 401' });
-    await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'Next' }));
-    });
-
-    expect(mockCreateListingInteraction).not.toHaveBeenCalled();
-    expect(await screen.findByRole('heading', { name: 'Listing 402' })).toBeTruthy();
-    await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/402'));
-  });
-
   it('shows the terminal state inside the listings flow', async () => {
     const user = userEvent.setup();
     mockFetch.mockResolvedValueOnce({
@@ -148,7 +129,7 @@ describe('ListingFlow', () => {
 
     await screen.findByRole('heading', { name: 'Listing 501' });
     await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await user.click(screen.getByRole('button', { name: 'Skip' }));
     });
 
     expect(await screen.findByRole('heading', { name: 'No more listings' })).toBeTruthy();

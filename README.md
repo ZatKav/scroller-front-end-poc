@@ -88,7 +88,7 @@ The app also exposes a protected listing review flow alongside the image scrolle
 - The listing flow renders listing detail content through the same `ListingDetailContent` and
   `mapListingToView` path as the standalone `/listing/[id]` detail route.
 - `Skip` and `Like` persist listing preferences through `POST /customer-listing-interactions` with
-  `action` values `0` and `1`; `Next` advances the local queue without recording a preference.
+  `action` values `0` and `1`.
 - `src/lib/stack-rank-client.ts` contains the server-side client for the upstream
   `/api/listings/stack-rank` endpoint.
 - `src/lib/listing-stack-rank-queue.ts` contains the queue contract: deduplicate ranked listings by
