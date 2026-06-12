@@ -9,6 +9,8 @@ const mockUseAuth = jest.fn();
 const mockFetch = jest.fn();
 const mockCreateListingInteraction =
   scrollerCustomerInteractionsDbApiClient.createCustomerListingInteraction as jest.Mock;
+const mockDeleteListingInteractions =
+  scrollerCustomerInteractionsDbApiClient.deleteCustomerListingInteractions as jest.Mock;
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -23,6 +25,7 @@ jest.mock('@/contexts/AuthContext', () => ({
 jest.mock('@/app/shared/clients/scroller-customer-interactions-db-api-client', () => ({
   scrollerCustomerInteractionsDbApiClient: {
     createCustomerListingInteraction: jest.fn().mockResolvedValue({}),
+    deleteCustomerListingInteractions: jest.fn().mockResolvedValue({ deleted: 0 }),
   },
 }));
 
@@ -43,6 +46,8 @@ beforeEach(() => {
   mockUseAuth.mockReturnValue({ user: { id: 42 } });
   mockCreateListingInteraction.mockReset();
   mockCreateListingInteraction.mockResolvedValue({});
+  mockDeleteListingInteractions.mockReset();
+  mockDeleteListingInteractions.mockResolvedValue({ deleted: 0 });
 });
 
 describe('ListingFlow', () => {
@@ -59,6 +64,7 @@ describe('ListingFlow', () => {
     expect(screen.getByRole('button', { name: 'Skip' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Like' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Delete preferences' })).toBeTruthy();
     expect(mockFetch).toHaveBeenCalledWith('/api/listings/stack-rank?limit=4');
     await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/101'));
   });
@@ -133,6 +139,38 @@ describe('ListingFlow', () => {
     });
 
     expect(await screen.findByRole('heading', { name: 'No more listings' })).toBeTruthy();
+  });
+
+  it('deletes listing preferences and reloads the listing queue from its initial state', async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [makeListing(602)] }),
+    } as Response).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [] }),
+    } as Response).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [makeListing(701), makeListing(702)] }),
+    } as Response);
+
+    render(<ListingFlow initialListing={makeListing(601)} />);
+
+    await screen.findByRole('heading', { name: 'Listing 601' });
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Skip' }));
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Listing 602' })).toBeTruthy();
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Delete preferences' }));
+    });
+
+    expect(mockDeleteListingInteractions).toHaveBeenCalledWith(42);
+    expect(mockCreateListingInteraction).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('heading', { name: 'Listing 701' })).toBeTruthy();
+    await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/701'));
   });
 
 });
