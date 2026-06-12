@@ -13,6 +13,19 @@ export interface CustomerImageInteraction extends Omit<CustomerImageInteractionC
   viewed_at: string;
 }
 
+export interface CustomerListingInteractionCreate {
+  customer_id: number;
+  listing_id: number;
+  action: 0 | 1;
+  view_duration_ms?: number;
+}
+
+export interface CustomerListingInteraction extends Omit<CustomerListingInteractionCreate, 'view_duration_ms'> {
+  id: number;
+  view_duration_ms: number | null;
+  viewed_at: string;
+}
+
 export interface StackRankImage {
   id: number;
   listing_id?: number | null;

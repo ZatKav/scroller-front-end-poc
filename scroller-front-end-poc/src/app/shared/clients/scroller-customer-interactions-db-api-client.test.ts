@@ -158,6 +158,79 @@ describe('scrollerCustomerInteractionsDbApiClient', () => {
     });
   });
 
+  describe('listing interactions', () => {
+    it('fetches listing interactions with default pagination', async () => {
+      const mockResponse = [{
+        id: 1,
+        customer_id: 100,
+        listing_id: 20,
+        action: 1,
+        view_duration_ms: 123,
+        viewed_at: '2026-03-24T10:00:00Z',
+      }];
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      } as Response);
+
+      const result = await scrollerCustomerInteractionsDbApiClient.getCustomerListingInteractions(100);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/scroller-customer-interactions-db?path=%2Fcustomer-listing-interactions%2F100%3Fskip%3D0%26limit%3D100',
+        expect.objectContaining({
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('posts listing interaction payloads', async () => {
+      const payload = { customer_id: 1, listing_id: 2, action: 0 as const, view_duration_ms: 55 };
+      const mockResponse = {
+        id: 10,
+        customer_id: 1,
+        listing_id: 2,
+        action: 0,
+        view_duration_ms: 55,
+        viewed_at: '2026-03-24T11:00:00Z',
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      } as Response);
+
+      const result = await scrollerCustomerInteractionsDbApiClient.createCustomerListingInteraction(payload);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/scroller-customer-interactions-db?path=%2Fcustomer-listing-interactions',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify(payload),
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('deletes listing interactions for a customer', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ deleted: 2 }),
+      } as Response);
+
+      const result = await scrollerCustomerInteractionsDbApiClient.deleteCustomerListingInteractions(100);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/scroller-customer-interactions-db?path=%2Fcustomer-listing-interactions%2F100',
+        expect.objectContaining({
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      expect(result).toEqual({ deleted: 2 });
+    });
+  });
+
   describe('getStackRankImages', () => {
     it('fetches stack-rank image cards', async () => {
       const mockResponse = [
