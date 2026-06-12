@@ -173,4 +173,47 @@ describe('ListingFlow', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/701'));
   });
 
+  it('ignores stale continuation fetches when deleting preferences reloads the queue', async () => {
+    const user = userEvent.setup();
+    let resolvePrefetch: (response: Response) => void = () => {};
+    const stalePrefetch = new Promise<Response>((resolve) => {
+      resolvePrefetch = resolve;
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [makeListing(802)] }),
+    } as Response).mockImplementationOnce(() => stalePrefetch).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [makeListing(901), makeListing(902)] }),
+    } as Response);
+
+    render(<ListingFlow initialListing={makeListing(801)} />);
+
+    await screen.findByRole('heading', { name: 'Listing 801' });
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Skip' }));
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Listing 802' })).toBeTruthy();
+    expect(await screen.findByText('Loading more listings...')).toBeTruthy();
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Delete preferences' }));
+    });
+
+    expect(mockDeleteListingInteractions).toHaveBeenCalledWith(42);
+    expect(await screen.findByRole('heading', { name: 'Listing 901' })).toBeTruthy();
+
+    await act(async () => {
+      resolvePrefetch({
+        ok: true,
+        json: () => Promise.resolve({ listings: [makeListing(803)] }),
+      } as Response);
+    });
+
+    expect(screen.queryByRole('heading', { name: 'Listing 803' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Listing 901' })).toBeTruthy();
+    await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/901'));
+  });
+
 });

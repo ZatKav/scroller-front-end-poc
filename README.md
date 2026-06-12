@@ -90,8 +90,9 @@ The app also exposes a protected listing review flow alongside the image scrolle
 - `Skip` and `Like` persist listing preferences through `POST /customer-listing-interactions` with
   `action` values `0` and `1`, then advance to the next queued listing.
 - The bottom `Delete preferences` control deletes only listing interactions through
-  `DELETE /customer-listing-interactions/{customer_id}` and reloads the listing stack-rank queue;
-  image preferences and the image scroller reset behavior are unchanged.
+  `DELETE /customer-listing-interactions/{customer_id}` after the interactions proxy verifies the signed-in
+  customer id, then reloads the listing stack-rank queue; image preferences and the image scroller reset
+  behavior are unchanged.
 - `src/lib/stack-rank-client.ts` contains the server-side client for the upstream
   `/api/listings/stack-rank` endpoint.
 - `src/lib/listing-stack-rank-queue.ts` contains the queue contract: deduplicate ranked listings by

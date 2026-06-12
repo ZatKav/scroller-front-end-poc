@@ -52,6 +52,7 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
   const mountedRef = useRef(false);
   const refillInFlightRef = useRef(false);
   const actionInFlightRef = useRef(false);
+  const queueGenerationRef = useRef(0);
 
   const currentListing = listings[currentIndex] ?? null;
 
@@ -70,13 +71,14 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
       return;
     }
 
+    const queueGeneration = queueGenerationRef.current;
     refillInFlightRef.current = true;
     setLoadingMore(!initial);
     setQueueError(null);
 
     try {
       const { listings: windowListings } = await fetchListingWindow(limit);
-      if (!mountedRef.current) {
+      if (!mountedRef.current || queueGeneration !== queueGenerationRef.current) {
         return;
       }
 
@@ -86,12 +88,53 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
         return mergedListings;
       });
     } catch {
-      if (!mountedRef.current) {
+      if (!mountedRef.current || queueGeneration !== queueGenerationRef.current) {
         return;
       }
 
       setQueueError(initial ? 'Failed to load listings.' : 'More listings could not be loaded.');
     } finally {
+      if (queueGeneration !== queueGenerationRef.current) {
+        return;
+      }
+
+      refillInFlightRef.current = false;
+      if (mountedRef.current) {
+        setInitialLoading(false);
+        setLoadingMore(false);
+      }
+    }
+  }
+
+  async function reloadListingQueue(limit: number) {
+    const queueGeneration = queueGenerationRef.current + 1;
+    queueGenerationRef.current = queueGeneration;
+    refillInFlightRef.current = true;
+    setLoadingMore(false);
+
+    try {
+      const { listings: windowListings } = await fetchListingWindow(limit);
+      if (!mountedRef.current || queueGeneration !== queueGenerationRef.current) {
+        return;
+      }
+
+      const uniqueListings = appendUniqueListings([], windowListings);
+      setListings(uniqueListings);
+      setCurrentIndex(0);
+      setNoMoreListings(uniqueListings.length === 0);
+    } catch {
+      if (!mountedRef.current || queueGeneration !== queueGenerationRef.current) {
+        return;
+      }
+
+      setListings([]);
+      setCurrentIndex(0);
+      setQueueError('Failed to load listings.');
+    } finally {
+      if (queueGeneration !== queueGenerationRef.current) {
+        return;
+      }
+
       refillInFlightRef.current = false;
       if (mountedRef.current) {
         setInitialLoading(false);
@@ -161,7 +204,7 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
       setCurrentIndex(0);
       setNoMoreListings(false);
       setInitialLoading(true);
-      await loadMoreListings(CONTINUATION_LOAD_LIMIT, true);
+      await reloadListingQueue(CONTINUATION_LOAD_LIMIT);
     } catch (error) {
       console.error('Failed to delete listing preferences:', error);
       setActionError('Could not delete listing preferences. Please try again.');

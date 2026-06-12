@@ -29,7 +29,8 @@ listing detail UI and carousel.
 - Updates `src/components/ListingFlow.tsx`, the client-side protected listings-flow surface introduced by
   PRO-150.
 - Reuses the existing browser proxy client method
-  `deleteCustomerListingInteractions(customerId)` instead of adding a new API route or exposing credentials.
+  `deleteCustomerListingInteractions(customerId)` and hardens the proxy so customer interaction reads,
+  creates, and deletes require a session whose user id matches the requested `customer_id`.
 - Keeps stack-rank reloads on the existing authenticated `GET /api/listings/stack-rank` BFF route.
 
 ## Functional Changes
@@ -37,14 +38,15 @@ listing detail UI and carousel.
 - `Skip` records a listing interaction with `action: 0` and advances to the next queued listing.
 - `Like` records a listing interaction with `action: 1` and advances to the next queued listing.
 - `Delete preferences` calls the listing-interactions delete endpoint for the signed-in user, clears local
-  listing queue state, reloads the first stack-rank window, and routes to the refreshed first listing.
+  listing queue state, ignores stale in-flight prefetches, reloads the first stack-rank window, and routes to
+  the refreshed first listing.
 - No image-interaction delete helper is called by the listing preferences reset.
 
 ## Validation
 
 - `npm ci`: passed; installed dependencies from `package-lock.json`.
-- `npm test -- --runTestsByPath src/components/ListingFlow.test.tsx`: passed, 1 suite / 5 tests.
-- `npm test`: passed, 26 suites / 236 tests. Existing image scroller and carousel tests still emit noisy
+- `npm test -- --runTestsByPath src/components/ListingFlow.test.tsx src/app/api/scroller-customer-interactions-db/route.test.ts --runInBand`: passed, 2 suites / 14 tests.
+- `npm test -- --runInBand`: passed, 26 suites / 241 tests. Existing image scroller and carousel tests still emit noisy
   React `act(...)` warnings.
 - `npm run build`: passed and listed `/listings` plus `/listings/[id]`.
 - `npm run test:e2e:ci -- --list`: passed, 6 Chromium specs listed.
@@ -57,5 +59,7 @@ listing detail UI and carousel.
 
 - `README.md`: Documented listing preference deletion and clarified Skip/Like advancement.
 - `documentation/tickets/PRO-149-listing-interactions-controls.md`: Ticket implementation artifact.
+- `scroller-front-end-poc/src/app/api/scroller-customer-interactions-db/route.ts`: Added session/customer-id authorization for customer interaction proxy paths.
+- `scroller-front-end-poc/src/app/api/scroller-customer-interactions-db/route.test.ts`: Covered authorized and rejected customer interaction proxy calls.
 - `scroller-front-end-poc/src/components/ListingFlow.tsx`: Added listing-preference reset and kept the action row to Skip/Like only.
-- `scroller-front-end-poc/src/components/ListingFlow.test.tsx`: Covered two-control rendering, Skip/Like persistence, advancement, terminal state, and listing-only reset.
+- `scroller-front-end-poc/src/components/ListingFlow.test.tsx`: Covered two-control rendering, Skip/Like persistence, advancement, terminal state, listing-only reset, and stale prefetch suppression.
