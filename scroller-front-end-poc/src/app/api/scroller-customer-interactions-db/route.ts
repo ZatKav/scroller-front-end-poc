@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -34,6 +35,58 @@ function getInvalidPathResponse(): NextResponse {
   return NextResponse.json({ error: 'Missing or invalid path query parameter' }, { status: 400 });
 }
 
+function getInteractionCustomerId(path: string): number | null {
+  const pathname = path.split('?')[0];
+  const match = pathname.match(/^\/customer-(?:image|listing)-interactions\/(\d+)$/);
+  if (!match) {
+    return null;
+  }
+
+  const customerId = match[1];
+  return customerId === undefined ? null : Number(customerId);
+}
+
+function getCreateInteractionCustomerId(path: string, body: unknown): number | null {
+  if (path !== '/customer-image-interactions' && path !== '/customer-listing-interactions') {
+    return null;
+  }
+
+  if (typeof body !== 'object' || body === null || !('customer_id' in body)) {
+    return Number.NaN;
+  }
+
+  return Number((body as { customer_id: unknown }).customer_id);
+}
+
+function getCustomerAuthorizationError(
+  request: NextRequest,
+  customerId: number | null,
+): NextResponse | null {
+  if (customerId === null) {
+    return null;
+  }
+
+  if (!Number.isInteger(customerId)) {
+    return NextResponse.json({ error: 'Invalid customer id' }, { status: 400 });
+  }
+
+  const token = request.cookies.get('auth-token')?.value;
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const user = verifyToken(token);
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  if (user.id !== customerId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY) {
     return getMissingApiKeyResponse();
@@ -42,6 +95,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const path = getPathFromRequest(request);
   if (!path) {
     return getInvalidPathResponse();
+  }
+
+  const authError = getCustomerAuthorizationError(request, getInteractionCustomerId(path));
+  if (authError) {
+    return authError;
   }
 
   try {
@@ -77,6 +135,11 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const path = getPathFromRequest(request);
   if (!path) {
     return getInvalidPathResponse();
+  }
+
+  const authError = getCustomerAuthorizationError(request, getInteractionCustomerId(path));
+  if (authError) {
+    return authError;
   }
 
   try {
@@ -117,6 +180,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     const body = await request.json();
+    const authError = getCustomerAuthorizationError(
+      request,
+      getCreateInteractionCustomerId(path, body),
+    );
+    if (authError) {
+      return authError;
+    }
+
     const response = await fetch(`${SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL}/api${path}`, {
       method: 'POST',
       headers: getProxyHeaders(),

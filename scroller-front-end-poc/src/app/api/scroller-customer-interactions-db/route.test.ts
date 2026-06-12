@@ -5,11 +5,19 @@ import { NextRequest } from 'next/server';
 
 const BASE_URL = 'http://localhost:8400';
 const API_KEY = 'test-api-key';
+const AUTH_COOKIE = 'auth-token=valid-token';
 
-function makeRequest(path?: string): NextRequest {
+const mockVerifyToken = jest.fn();
+
+jest.mock('@/lib/auth', () => ({
+  verifyToken: (token: string) => mockVerifyToken(token),
+}));
+
+function makeRequest(path?: string, cookie: string | null = AUTH_COOKIE): NextRequest {
   const query = path === undefined ? '' : `?path=${encodeURIComponent(path)}`;
   return new NextRequest(`http://localhost:8410/api/scroller-customer-interactions-db${query}`, {
     method: 'DELETE',
+    headers: cookie ? { Cookie: cookie } : undefined,
   });
 }
 
@@ -21,11 +29,35 @@ function loadDelete() {
   return handler!;
 }
 
+function loadPost() {
+  let handler: typeof import('./route').POST;
+  jest.isolateModules(() => {
+    handler = require('./route').POST;
+  });
+  return handler!;
+}
+
+function makePostRequest(path: string, body: object, cookie: string | null = AUTH_COOKIE): NextRequest {
+  const query = `?path=${encodeURIComponent(path)}`;
+  return new NextRequest(`http://localhost:8410/api/scroller-customer-interactions-db${query}`, {
+    method: 'POST',
+    headers: cookie ? { Cookie: cookie } : undefined,
+    body: JSON.stringify(body),
+  });
+}
+
 const mockFetch = jest.fn();
 
 beforeEach(() => {
   jest.resetModules();
   mockFetch.mockReset();
+  mockVerifyToken.mockReset();
+  mockVerifyToken.mockReturnValue({
+    id: 100,
+    username: 'customer',
+    email: 'customer@example.com',
+    role: 'user',
+  });
   global.fetch = mockFetch as unknown as typeof fetch;
   process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL = BASE_URL;
   process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY = API_KEY;
@@ -49,6 +81,27 @@ describe('DELETE /api/scroller-customer-interactions-db', () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ deleted: 4 });
+  });
+
+  it('rejects customer interaction deletes without an authenticated session', async () => {
+    const response = await loadDelete()(makeRequest('/customer-listing-interactions/100', null));
+
+    expect(response.status).toBe(401);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects customer interaction deletes for a different customer', async () => {
+    mockVerifyToken.mockReturnValue({
+      id: 101,
+      username: 'other-customer',
+      email: 'other@example.com',
+      role: 'user',
+    });
+
+    const response = await loadDelete()(makeRequest('/customer-listing-interactions/100'));
+
+    expect(response.status).toBe(403);
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('returns 400 when the path query parameter is missing', async () => {
@@ -77,5 +130,36 @@ describe('DELETE /api/scroller-customer-interactions-db', () => {
     const response = await loadDelete()(makeRequest('/customer-image-interactions/100'));
 
     expect(response.status).toBe(401);
+  });
+});
+
+describe('POST /api/scroller-customer-interactions-db', () => {
+  it('forwards customer interaction creates for the authenticated customer', async () => {
+    const payload = { customer_id: 100, listing_id: 25, action: 1, view_duration_ms: 300 };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ id: 1, ...payload }),
+    } as Response);
+
+    const response = await loadPost()(makePostRequest('/customer-listing-interactions', payload));
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/customer-listing-interactions`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: expect.objectContaining({ Authorization: `Bearer ${API_KEY}` }),
+      }),
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it('rejects customer interaction creates for a different customer', async () => {
+    const payload = { customer_id: 101, listing_id: 25, action: 1, view_duration_ms: 300 };
+
+    const response = await loadPost()(makePostRequest('/customer-listing-interactions', payload));
+
+    expect(response.status).toBe(403);
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
