@@ -1,6 +1,8 @@
 import {
   CustomerImageInteraction,
   CustomerImageInteractionCreate,
+  CustomerListingInteraction,
+  CustomerListingInteractionCreate,
   StackRankImage,
 } from '@/types/scroller-customer-interactions-db';
 import { appPath } from '@/lib/base-path';
@@ -110,6 +112,41 @@ export const scrollerCustomerInteractionsDbApiClient = {
 
   async deleteCustomerImageInteractions(customerId: number): Promise<{ deleted: number }> {
     return request<{ deleted: number }>(`/customer-image-interactions/${customerId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getCustomerListingInteractions(
+    customerId: number,
+    skip: number = 0,
+    limit: number = 100,
+    action?: 0 | 1,
+  ): Promise<CustomerListingInteraction[]> {
+    const queryParams = new URLSearchParams({
+      skip: String(skip),
+      limit: String(limit),
+    });
+
+    if (action !== undefined) {
+      queryParams.set('action', String(action));
+    }
+
+    return request<CustomerListingInteraction[]>(
+      `/customer-listing-interactions/${customerId}?${queryParams.toString()}`,
+    );
+  },
+
+  async createCustomerListingInteraction(
+    payload: CustomerListingInteractionCreate,
+  ): Promise<CustomerListingInteraction> {
+    return request<CustomerListingInteraction>('/customer-listing-interactions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteCustomerListingInteractions(customerId: number): Promise<{ deleted: number }> {
+    return request<{ deleted: number }>(`/customer-listing-interactions/${customerId}`, {
       method: 'DELETE',
     });
   },
