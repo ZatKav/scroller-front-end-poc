@@ -1,4 +1,8 @@
-import { fetchStackRank, fetchStackRankImages } from '@/lib/stack-rank-client';
+import {
+  fetchListingStackRank,
+  fetchStackRank,
+  fetchStackRankImages,
+} from '@/lib/stack-rank-client';
 
 const mockFetch = jest.fn();
 const originalBaseUrl = process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL;
@@ -114,5 +118,56 @@ describe('fetchStackRank', () => {
     const result = await fetchStackRank({ customerId: 42, limit: 3 });
 
     expect(result).toEqual({ images: mockImages, profile_weights: {} });
+  });
+});
+
+describe('fetchListingStackRank', () => {
+  it('requests the customer-aware listing stack-rank window from the interactions API', async () => {
+    const mockListings = [{ id: 101, title: 'First listing' }];
+    const mockWeights = { 'bedrooms:3': 0.8 };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: mockListings, profile_weights: mockWeights }),
+    } as Response);
+
+    const result = await fetchListingStackRank({ customerId: 42, limit: 4 });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://interactions.local/api/listings/stack-rank?limit=4&customer_id=42',
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer test-api-key',
+        },
+        cache: 'no-store',
+      },
+    );
+    expect(result).toEqual({ listings: mockListings, profile_weights: mockWeights });
+  });
+
+  it('falls back to legacy skip/limit windows when no customer id is provided', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [], profile_weights: {} }),
+    } as Response);
+
+    await fetchListingStackRank({ skip: 8, limit: 2 });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://interactions.local/api/listings/stack-rank?limit=2&skip=8',
+      expect.any(Object),
+    );
+  });
+
+  it('defaults to an empty listing response when the upstream omits fields', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({}),
+    } as Response);
+
+    await expect(fetchListingStackRank({ customerId: 42 })).resolves.toEqual({
+      listings: [],
+      profile_weights: {},
+    });
   });
 });

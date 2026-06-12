@@ -76,6 +76,19 @@ per-customer `profile_weights` map produced by the ranking algorithm plus the cu
 customer likes/skips images and new continuation batches load. A cold-start customer with no
 interaction history shows an empty `{}` profile.
 
+The app also exposes the secondary listing stack-rank plumbing for the listing feed work that follows:
+
+- `GET /api/listings/stack-rank` is an authenticated BFF route that verifies the app session, sends the
+  signed-in user id upstream as `customer_id`, and keeps the interactions-db API key server-side.
+- `src/lib/stack-rank-client.ts` contains the server-side client for the upstream
+  `/api/listings/stack-rank` endpoint.
+- `src/lib/listing-stack-rank-queue.ts` contains the future UI queue contract: deduplicate ranked
+  listings by `listing.id`, expose one current listing plus three preloaded listings, represent empty
+  responses, and preserve the existing current listing when a later preload fails.
+
+This secondary listing queue does not replace the image scroller feed or persist listing actions; it is
+plumbing for the later presentation ticket.
+
 ## Testing
 
 ```bash

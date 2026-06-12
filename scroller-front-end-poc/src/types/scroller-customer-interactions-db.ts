@@ -1,3 +1,5 @@
+import type { ListingDetail } from '@/types/enrichment-db';
+
 export interface CustomerImageInteractionCreate {
   customer_id: number;
   image_id: number;
@@ -24,5 +26,10 @@ export type StackRankProfileWeights = Record<string, number>;
 
 export interface StackRankResponse {
   images: StackRankImage[];
+  profile_weights: StackRankProfileWeights;
+}
+
+export interface ListingStackRankResponse {
+  listings: ListingDetail[];
   profile_weights: StackRankProfileWeights;
 }
