@@ -100,6 +100,9 @@ The app also exposes a protected listing review flow alongside the image scrolle
   preserve the existing current listing when a later preload fails.
 
 The backwards-compatible standalone detail route remains available at `/listing/[id]`.
+It includes a `Show me something else` link to `/listings`, allowing a user who
+lands on an individual listing to enter the ranked listing discovery flow without
+prepending the deployed `/scroller` base path in source code.
 
 ## Testing
 
