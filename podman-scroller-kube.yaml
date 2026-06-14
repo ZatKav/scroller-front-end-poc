@@ -17,11 +17,11 @@ spec:
         - name: JWT_SECRET_KEY
           value: f74ed097f9240073570d2534bb8e4184
         - name: SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL
-          value: http://host.containers.internal:8400
+          value: http://scroller-customer-interactions-db-api:8400
         - name: SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY
           value: a9e08181c6f01244edc35813e387102bd9c889d014d10d27d940d62d7aaf827d
         - name: ENRICHMENT_DB_BASE_URL
-          value: http://host.containers.internal:8200
+          value: http://enrichment-db:8200
         - name: ENRICHMENT_DB_API_KEY
           value: a9e08181c6f01244edc35813e387102bd9c889d014d10d27d940d62d7aaf827d
         - name: NEXT_PUBLIC_BASE_PATH

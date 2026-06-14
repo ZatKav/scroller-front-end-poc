@@ -143,9 +143,13 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
     }
   }
 
-  function maybePrefetch(nextIndex: number) {
+  function maybePrefetch(nextIndex: number, ignoreNoMoreListings = false) {
     const remainingListings = listings.length - nextIndex;
-    if (queueError !== null || noMoreListings || remainingListings > PREFETCH_THRESHOLD) {
+    if (
+      queueError !== null
+      || (!ignoreNoMoreListings && noMoreListings)
+      || remainingListings > PREFETCH_THRESHOLD
+    ) {
       return;
     }
 
@@ -156,7 +160,7 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
     setActionError(null);
     setCurrentIndex((previousIndex) => {
       const nextIndex = previousIndex + 1;
-      maybePrefetch(nextIndex);
+      maybePrefetch(nextIndex, true);
       return nextIndex;
     });
   }
@@ -229,6 +233,14 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
     return (
       <main className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
         <p className="text-gray-600">Loading listings...</p>
+      </main>
+    );
+  }
+
+  if (!currentListing && loadingMore) {
+    return (
+      <main className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
+        <p role="status" className="text-gray-600">Loading more listings...</p>
       </main>
     );
   }

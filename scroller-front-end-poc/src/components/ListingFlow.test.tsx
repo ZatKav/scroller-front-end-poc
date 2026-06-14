@@ -130,6 +130,9 @@ describe('ListingFlow', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ listings: [] }),
+    } as Response).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [] }),
     } as Response);
 
     render(<ListingFlow initialListing={makeListing(501)} />);
@@ -140,6 +143,39 @@ describe('ListingFlow', () => {
     });
 
     expect(await screen.findByRole('heading', { name: 'No more listings' })).toBeTruthy();
+  });
+
+  it('keeps a loading state while the next post-action listing is being fetched', async () => {
+    const user = userEvent.setup();
+    let resolveContinuation: (response: Response) => void = () => {};
+    const continuation = new Promise<Response>((resolve) => {
+      resolveContinuation = resolve;
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [] }),
+    } as Response).mockImplementationOnce(() => continuation);
+
+    render(<ListingFlow initialListing={makeListing(551)} />);
+
+    await screen.findByRole('heading', { name: 'Listing 551' });
+    await waitFor(() => expect(screen.queryByText('Loading more listings...')).toBeNull());
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Like' }));
+    });
+
+    expect(screen.queryByRole('heading', { name: 'No more listings' })).toBeNull();
+    expect(screen.getByText('Loading more listings...')).toBeTruthy();
+
+    await act(async () => {
+      resolveContinuation({
+        ok: true,
+        json: () => Promise.resolve({ listings: [makeListing(552)] }),
+      } as Response);
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Listing 552' })).toBeTruthy();
   });
 
   it('deletes listing preferences and reloads the listing queue from its initial state', async () => {
