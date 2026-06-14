@@ -76,6 +76,34 @@ per-customer `profile_weights` map produced by the ranking algorithm plus the cu
 customer likes/skips images and new continuation batches load. A cold-start customer with no
 interaction history shows an empty `{}` profile.
 
+The app also exposes a protected listing review flow alongside the image scroller:
+
+- `GET /api/listings/stack-rank` is an authenticated BFF route that verifies the app session, sends the
+  signed-in user id upstream as `customer_id`, and keeps the interactions-db API key server-side.
+- `/listings` loads the signed-in customer's listing stack-rank queue and updates the browser URL to
+  `/listings/{listing_id}` as soon as the first ranked listing is selected. With `NEXT_PUBLIC_BASE_PATH=/scroller`,
+  those routes are served as `/scroller/listings` and `/scroller/listings/{listing_id}`.
+- `/listings/[id]` keeps direct navigation inside the same flow by server-rendering the addressed listing
+  detail first, then hydrating the queue for the next ranked listings.
+- The listing flow renders listing detail content through the same `ListingDetailContent` and
+  `mapListingToView` path as the standalone `/listing/[id]` detail route.
+- `Skip` and `Like` persist listing preferences through `POST /customer-listing-interactions` with
+  `action` values `0` and `1`, then advance to the next queued listing.
+- The bottom `Delete preferences` control deletes only listing interactions through
+  `DELETE /customer-listing-interactions/{customer_id}` after the interactions proxy verifies the signed-in
+  customer id, then reloads the listing stack-rank queue; image preferences and the image scroller reset
+  behavior are unchanged.
+- `src/lib/stack-rank-client.ts` contains the server-side client for the upstream
+  `/api/listings/stack-rank` endpoint.
+- `src/lib/listing-stack-rank-queue.ts` contains the queue contract: deduplicate ranked listings by
+  `listing.id`, expose one current listing plus three preloaded listings, represent empty responses, and
+  preserve the existing current listing when a later preload fails.
+
+The backwards-compatible standalone detail route remains available at `/listing/[id]`.
+It includes a `Show me something else` link to `/listings`, allowing a user who
+lands on an individual listing to enter the ranked listing discovery flow without
+prepending the deployed `/scroller` base path in source code.
+
 ## Testing
 
 ```bash
@@ -198,6 +226,9 @@ scroller-front-end-poc/   # Root workspace
     │   │   ├── api/scroller-customer-interactions-db/
     │   │   │   ├── route.ts
     │   │   │   └── health/route.ts
+    │   │   ├── (protected)/listings/
+    │   │   │   ├── page.tsx
+    │   │   │   └── [id]/page.tsx
     │   │   ├── shared/clients/
     │   │   │   ├── scroller-customer-interactions-db-api-client.ts
     │   │   │   └── scroller-customer-interactions-db-api-client.test.ts

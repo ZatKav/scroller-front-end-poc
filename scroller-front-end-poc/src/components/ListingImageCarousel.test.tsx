@@ -1,6 +1,19 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
 import ListingImageCarousel, { type CarouselImage } from './ListingImageCarousel';
+
+jest.mock('@/app/shared/clients/scroller-customer-interactions-db-api-client', () => ({
+  scrollerCustomerInteractionsDbApiClient: {
+    createCustomerImageInteraction: jest.fn().mockResolvedValue({}),
+    createCustomerListingInteraction: jest.fn().mockResolvedValue({}),
+  },
+}));
+
+const mockCreateCustomerImageInteraction =
+  scrollerCustomerInteractionsDbApiClient.createCustomerImageInteraction as jest.Mock;
+const mockCreateCustomerListingInteraction =
+  scrollerCustomerInteractionsDbApiClient.createCustomerListingInteraction as jest.Mock;
 
 const IMAGES: CarouselImage[] = [
   { image_data: 'AAAA', alt: 'Front of house' },
@@ -25,6 +38,10 @@ function swipe(deltaX: number, deltaY = 0) {
 }
 
 describe('ListingImageCarousel', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('renders the first image and a dot per image on mount', () => {
     render(<ListingImageCarousel images={IMAGES} />);
 
@@ -42,7 +59,9 @@ describe('ListingImageCarousel', () => {
     const user = userEvent.setup();
     render(<ListingImageCarousel images={IMAGES} />);
 
-    await user.click(screen.getByTestId('carousel-dot-2'));
+    await act(async () => {
+      await user.click(screen.getByTestId('carousel-dot-2'));
+    });
 
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
@@ -71,18 +90,46 @@ describe('ListingImageCarousel', () => {
     act(() => {
       swipe(-120);
     });
-    expect(screen.getByTestId('carousel-image')).toHaveAttribute(
-      'src',
+    expect(screen.getByTestId('carousel-image').getAttribute('src')).toBe(
       'data:image/jpeg;base64,BBBB',
     );
 
     act(() => {
       swipe(120);
     });
-    expect(screen.getByTestId('carousel-image')).toHaveAttribute(
-      'src',
+    expect(screen.getByTestId('carousel-image').getAttribute('src')).toBe(
       'data:image/jpeg;base64,AAAA',
     );
+  });
+
+  it('keeps left and right swipes local to the carousel without navigation or interactions', () => {
+    const navigateToListings = jest.fn();
+    render(
+      <section>
+        <a href="/listings" onClick={navigateToListings}>
+          Show me something else
+        </a>
+        <ListingImageCarousel images={IMAGES} />
+      </section>,
+    );
+
+    act(() => {
+      swipe(-120);
+    });
+    expect(screen.getByTestId('carousel-image').getAttribute('src')).toBe(
+      'data:image/jpeg;base64,BBBB',
+    );
+
+    act(() => {
+      swipe(120);
+    });
+    expect(screen.getByTestId('carousel-image').getAttribute('src')).toBe(
+      'data:image/jpeg;base64,AAAA',
+    );
+
+    expect(navigateToListings).not.toHaveBeenCalled();
+    expect(mockCreateCustomerImageInteraction).not.toHaveBeenCalled();
+    expect(mockCreateCustomerListingInteraction).not.toHaveBeenCalled();
   });
 
   it('ignores a short horizontal drag below the swipe threshold', () => {
