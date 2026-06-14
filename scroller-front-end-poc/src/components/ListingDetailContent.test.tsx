@@ -78,11 +78,14 @@ describe('ListingDetailContent', () => {
     ).toBeTruthy();
   });
 
-  it('links to the listing discovery flow without pre-applying the base path', () => {
-    render(<ListingDetailContent view={makeView()} />);
+  it('renders route-specific footer content when provided', () => {
+    render(
+      <ListingDetailContent
+        view={makeView()}
+        footer={<button type="button">Route action</button>}
+      />,
+    );
 
-    expect(
-      screen.getByRole('link', { name: 'Show me something else' }).getAttribute('href'),
-    ).toBe('/listings');
+    expect(screen.getByRole('button', { name: 'Route action' })).toBeTruthy();
   });
 });

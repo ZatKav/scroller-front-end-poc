@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { loginAndExpectAuthenticated } from './helpers/login';
+import { loginAndExpectAuthenticated, scrollerEntryPath } from './helpers/login';
 import {
   deleteSeededScrollerListing,
   ensureSeededScrollerImages,
@@ -38,14 +38,14 @@ test('view-listing control navigates to the listing detail route', async ({ page
 
   // Defer the scroller-image assertion until after the reset below (the queue
   // can be exhausted by prior runs); see login.spec.ts for the rationale.
-  const user = await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  const user = await loginAndExpectAuthenticated(page, { expectListingsContent: false });
   interactionsCleanupUserId = user.id;
 
   // Seed a renderable, stack-rank-eligible card (which carries a listing_id),
   // then reset this user's interactions so the queue starts fully populated.
   await ensureSeededScrollerImages();
   await deleteCustomerImageInteractions(user.id);
-  await page.goto('/');
+  await page.goto(scrollerEntryPath());
   await page.reload();
 
   await expect(page.getByTestId('scroller-image')).toBeVisible({ timeout: 30000 });
@@ -65,12 +65,12 @@ test('view-listing control navigates to the listing detail route', async ({ page
 test('view-listing control does not disturb Skip/Like recording', async ({ page }) => {
   test.setTimeout(60000);
 
-  const user = await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  const user = await loginAndExpectAuthenticated(page, { expectListingsContent: false });
   interactionsCleanupUserId = user.id;
 
   await ensureSeededScrollerImages();
   await deleteCustomerImageInteractions(user.id);
-  await page.goto('/');
+  await page.goto(scrollerEntryPath());
   await page.reload();
 
   const scrollerImage = page.getByTestId('scroller-image');

@@ -33,6 +33,10 @@ function listingsPath(): string {
   return appPath('/listings');
 }
 
+export function scrollerEntryPath(): string {
+  return appPath('/');
+}
+
 function isDeploySmoke(): boolean {
   return process.env.PLAYWRIGHT_DEPLOY_SMOKE === '1';
 }
@@ -214,16 +218,16 @@ function isAuthenticatedE2EUser(user: unknown): user is AuthenticatedE2EUser {
 
 export interface LoginExpectationOptions {
   // Whether to assert the post-login listings flow renders. Tests that drive the
-  // legacy image scroller should pass false, navigate to `/`, then assert the
-  // image themselves after resetting interactions.
-  expectScrollerImage?: boolean;
+  // legacy image scroller should pass false, navigate to `scrollerEntryPath()`,
+  // then assert the image themselves after resetting interactions.
+  expectListingsContent?: boolean;
 }
 
 export async function loginAndExpectAuthenticated(
   page: Page,
   options: LoginExpectationOptions = {},
 ): Promise<AuthenticatedE2EUser> {
-  const { expectScrollerImage = true } = options;
+  const { expectListingsContent = true } = options;
   const { username, password } = getLoginCredentials();
 
   await page.goto(appPath('/login'));
@@ -254,7 +258,7 @@ export async function loginAndExpectAuthenticated(
   expect(
     landingPathname === listingsPath() || landingPathname.startsWith(`${listingsPath()}/`),
   ).toBeTruthy();
-  if (expectScrollerImage) {
+  if (expectListingsContent) {
     await assertListingsContentVisible(page);
   }
 

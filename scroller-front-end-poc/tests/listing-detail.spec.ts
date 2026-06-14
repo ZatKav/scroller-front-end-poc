@@ -14,7 +14,7 @@ test('renders the detail page for a seeded listing', async ({ page }) => {
 
   // The detail page is its own protected route; we do not need the scroller feed
   // image, so skip that assertion in the login helper.
-  await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  await loginAndExpectAuthenticated(page, { expectListingsContent: false });
 
   // Seed a fully-renderable listing directly in enrichment-db (idempotent) so
   // the test does not depend on ambient data, and key the navigation on its id.
@@ -32,7 +32,7 @@ test('renders the detail page for a seeded listing', async ({ page }) => {
 test('opens listing discovery from the detail page entry point', async ({ page }) => {
   test.setTimeout(60000);
 
-  await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  await loginAndExpectAuthenticated(page, { expectListingsContent: false });
   const { id } = await ensureSeededDetailListing();
 
   await page.goto(`/listing/${id}`);
@@ -45,7 +45,7 @@ test('carousel swipes stay on the current listing detail page', async ({ page, b
   test.skip(browserName !== 'chromium', 'Synthetic touch swipe regression runs in Chromium.');
   test.setTimeout(60000);
 
-  await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  await loginAndExpectAuthenticated(page, { expectListingsContent: false });
   const { id } = await ensureSeededDetailListing();
   const interactionRequests: string[] = [];
 

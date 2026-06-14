@@ -47,10 +47,12 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
   const [actionError, setActionError] = useState<string | null>(null);
   const [noMoreListings, setNoMoreListings] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [resettingPreferences, setResettingPreferences] = useState(false);
   const listingShownAtMsRef = useRef(Date.now());
   const mountedRef = useRef(false);
   const refillInFlightRef = useRef(false);
   const actionInFlightRef = useRef(false);
+  const queueGenerationRef = useRef(0);
 
   const currentListing = listings[currentIndex] ?? null;
 
@@ -69,13 +71,14 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
       return;
     }
 
+    const queueGeneration = queueGenerationRef.current;
     refillInFlightRef.current = true;
     setLoadingMore(!initial);
     setQueueError(null);
 
     try {
       const { listings: windowListings } = await fetchListingWindow(limit);
-      if (!mountedRef.current) {
+      if (!mountedRef.current || queueGeneration !== queueGenerationRef.current) {
         return;
       }
 
@@ -85,12 +88,53 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
         return mergedListings;
       });
     } catch {
-      if (!mountedRef.current) {
+      if (!mountedRef.current || queueGeneration !== queueGenerationRef.current) {
         return;
       }
 
       setQueueError(initial ? 'Failed to load listings.' : 'More listings could not be loaded.');
     } finally {
+      if (queueGeneration !== queueGenerationRef.current) {
+        return;
+      }
+
+      refillInFlightRef.current = false;
+      if (mountedRef.current) {
+        setInitialLoading(false);
+        setLoadingMore(false);
+      }
+    }
+  }
+
+  async function reloadListingQueue(limit: number) {
+    const queueGeneration = queueGenerationRef.current + 1;
+    queueGenerationRef.current = queueGeneration;
+    refillInFlightRef.current = true;
+    setLoadingMore(false);
+
+    try {
+      const { listings: windowListings } = await fetchListingWindow(limit);
+      if (!mountedRef.current || queueGeneration !== queueGenerationRef.current) {
+        return;
+      }
+
+      const uniqueListings = appendUniqueListings([], windowListings);
+      setListings(uniqueListings);
+      setCurrentIndex(0);
+      setNoMoreListings(uniqueListings.length === 0);
+    } catch {
+      if (!mountedRef.current || queueGeneration !== queueGenerationRef.current) {
+        return;
+      }
+
+      setListings([]);
+      setCurrentIndex(0);
+      setQueueError('Failed to load listings.');
+    } finally {
+      if (queueGeneration !== queueGenerationRef.current) {
+        return;
+      }
+
       refillInFlightRef.current = false;
       if (mountedRef.current) {
         setInitialLoading(false);
@@ -145,6 +189,33 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
     }
   }
 
+  async function deleteListingPreferences() {
+    if (!user || resettingPreferences) {
+      return;
+    }
+
+    setResettingPreferences(true);
+    setActionError(null);
+    setQueueError(null);
+
+    try {
+      await scrollerCustomerInteractionsDbApiClient.deleteCustomerListingInteractions(user.id);
+      setListings([]);
+      setCurrentIndex(0);
+      setNoMoreListings(false);
+      setInitialLoading(true);
+      await reloadListingQueue(CONTINUATION_LOAD_LIMIT);
+    } catch (error) {
+      console.error('Failed to delete listing preferences:', error);
+      setActionError('Could not delete listing preferences. Please try again.');
+    } finally {
+      setResettingPreferences(false);
+      if (mountedRef.current) {
+        setInitialLoading(false);
+      }
+    }
+  }
+
   useEffect(() => {
     mountedRef.current = true;
     void loadMoreListings(CONTINUATION_LOAD_LIMIT, initialListing === null);
@@ -182,7 +253,7 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
         <button
           type="button"
           onClick={() => recordPreference(0)}
-          disabled={submitting}
+          disabled={submitting || resettingPreferences}
           className="min-w-28 rounded-lg bg-gray-200 px-6 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Skip
@@ -190,7 +261,7 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
         <button
           type="button"
           onClick={() => recordPreference(1)}
-          disabled={submitting}
+          disabled={submitting || resettingPreferences}
           className="min-w-28 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Like
@@ -211,6 +282,14 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
           {actionError}
         </p>
       )}
+      <button
+        type="button"
+        onClick={deleteListingPreferences}
+        disabled={submitting || resettingPreferences}
+        className="mx-auto mt-2 text-sm font-semibold text-gray-700 underline-offset-4 hover:text-gray-950 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {resettingPreferences ? 'Deleting preferences...' : 'Delete preferences'}
+      </button>
     </div>
   );
 

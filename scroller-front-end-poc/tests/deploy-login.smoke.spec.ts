@@ -21,11 +21,11 @@ test('post-deploy entry path redirects to login without a duplicated base path',
 });
 
 test('post-deploy host login smoke lands on the protected listings flow', async ({ page }) => {
-  await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  await loginAndExpectAuthenticated(page, { expectListingsContent: false });
   await expectListingsPageRendered(page);
 });
 
 test('authenticated direct navigation to the entry path renders the scroller', async ({ page }) => {
-  await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  await loginAndExpectAuthenticated(page, { expectListingsContent: false });
   await expectAuthenticatedEntryRendersScroller(page);
 });

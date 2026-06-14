@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { loginAndExpectAuthenticated } from './helpers/login';
+import { loginAndExpectAuthenticated, scrollerEntryPath } from './helpers/login';
 import {
   deleteSeededScrollerListing,
   ensureSeededScrollerImages,
@@ -70,7 +70,7 @@ test('pre-deploy login check passes with valid credentials', async ({ page }) =>
   // Defer the scroller-image assertion until after the reset below: the queue
   // can be exhausted by prior runs, so asserting it inside the login helper
   // would fail before we get a chance to repopulate it.
-  const user = await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  const user = await loginAndExpectAuthenticated(page, { expectListingsContent: false });
   interactionsCleanupUserId = user.id;
 
   // Guarantee the feed has at least one renderable image. The shared CI
@@ -86,7 +86,7 @@ test('pre-deploy login check passes with valid credentials', async ({ page }) =>
   // below fails. Reset this user's interactions and reload so the scroller
   // always starts from a fresh, fully-populated queue.
   await deleteCustomerImageInteractions(user.id);
-  await page.goto('/');
+  await page.goto(scrollerEntryPath());
   await page.reload();
   await expect(page.getByTestId('scroller-image')).toBeVisible();
 
@@ -167,7 +167,7 @@ test('mobile swipes record persisted Like and Skip interactions', async ({ page,
 
   // Defer the scroller-image assertion until after the reset below (see the
   // button-based smoke above for the rationale).
-  const user = await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  const user = await loginAndExpectAuthenticated(page, { expectListingsContent: false });
   interactionsCleanupUserId = user.id;
 
   // Seed a renderable feed image (idempotent) so the test does not depend on
@@ -175,7 +175,7 @@ test('mobile swipes record persisted Like and Skip interactions', async ({ page,
   // regardless of prior runs, exactly like the button-based smoke above.
   await ensureSeededScrollerImages();
   await deleteCustomerImageInteractions(user.id);
-  await page.goto('/');
+  await page.goto(scrollerEntryPath());
   await page.reload();
 
   const scrollerImage = page.getByTestId('scroller-image');
