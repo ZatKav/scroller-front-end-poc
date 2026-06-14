@@ -77,4 +77,25 @@ describe('ListingDetailContent', () => {
       screen.getByRole('heading', { name: 'Riverside Apartment' }),
     ).toBeTruthy();
   });
+
+  it('renders optional footer content below the listing detail', () => {
+    render(
+      <ListingDetailContent
+        view={makeView()}
+        footer={<a href="/listings">Show me something else</a>}
+      />,
+    );
+
+    expect(
+      screen.getByRole('link', { name: 'Show me something else' }).getAttribute('href'),
+    ).toBe('/listings');
+  });
+
+  it('does not render the scroller transfer link unless a caller provides it', () => {
+    render(<ListingDetailContent view={makeView()} />);
+
+    expect(
+      screen.queryByRole('link', { name: 'Show me something else' }),
+    ).toBeNull();
+  });
 });

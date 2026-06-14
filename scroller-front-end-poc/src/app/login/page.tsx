@@ -14,7 +14,7 @@ export default function LoginPage() {
 
     useEffect(() => {
         if (user) {
-            router.replace('/');
+            router.replace('/listings');
         }
     }, [user, router]);
 
@@ -26,7 +26,7 @@ export default function LoginPage() {
         try {
             const success = await login(username, password);
             if (success) {
-                router.replace('/');
+                router.replace('/listings');
             } else {
                 setError('Invalid username or password');
             }

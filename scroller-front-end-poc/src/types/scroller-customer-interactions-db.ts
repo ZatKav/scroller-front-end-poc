@@ -1,3 +1,5 @@
+import type { ListingDetail } from '@/types/enrichment-db';
+
 export interface CustomerImageInteractionCreate {
   customer_id: number;
   image_id: number;
@@ -6,6 +8,19 @@ export interface CustomerImageInteractionCreate {
 }
 
 export interface CustomerImageInteraction extends Omit<CustomerImageInteractionCreate, 'view_duration_ms'> {
+  id: number;
+  view_duration_ms: number | null;
+  viewed_at: string;
+}
+
+export interface CustomerListingInteractionCreate {
+  customer_id: number;
+  listing_id: number;
+  action: 0 | 1;
+  view_duration_ms?: number;
+}
+
+export interface CustomerListingInteraction extends Omit<CustomerListingInteractionCreate, 'view_duration_ms'> {
   id: number;
   view_duration_ms: number | null;
   viewed_at: string;
@@ -24,5 +39,10 @@ export type StackRankProfileWeights = Record<string, number>;
 
 export interface StackRankResponse {
   images: StackRankImage[];
+  profile_weights: StackRankProfileWeights;
+}
+
+export interface ListingStackRankResponse {
+  listings: ListingDetail[];
   profile_weights: StackRankProfileWeights;
 }

@@ -45,6 +45,7 @@ test('view-listing control navigates to the listing detail route', async ({ page
   // then reset this user's interactions so the queue starts fully populated.
   await ensureSeededScrollerImages();
   await deleteCustomerImageInteractions(user.id);
+  await page.goto('/');
   await page.reload();
 
   await expect(page.getByTestId('scroller-image')).toBeVisible({ timeout: 30000 });
@@ -69,6 +70,7 @@ test('view-listing control does not disturb Skip/Like recording', async ({ page 
 
   await ensureSeededScrollerImages();
   await deleteCustomerImageInteractions(user.id);
+  await page.goto('/');
   await page.reload();
 
   const scrollerImage = page.getByTestId('scroller-image');

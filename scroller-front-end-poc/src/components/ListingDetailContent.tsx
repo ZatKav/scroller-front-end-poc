@@ -1,8 +1,10 @@
+import type { ReactNode } from 'react';
 import ListingImageCarousel from '@/components/ListingImageCarousel';
 import type { ListingDetailView } from '@/lib/listing-detail-view';
 
 interface ListingDetailContentProps {
   view: ListingDetailView;
+  footer?: ReactNode;
 }
 
 interface StatProps {
@@ -27,7 +29,7 @@ function Stat({ label, value }: StatProps) {
  * sparse listing never leaves empty chrome (PRO-255). Layout shift from images
  * is handled inside ListingImageCarousel (fixed aspect ratio).
  */
-export default function ListingDetailContent({ view }: ListingDetailContentProps) {
+export default function ListingDetailContent({ view, footer }: ListingDetailContentProps) {
   const hasStats = view.bedrooms !== null || view.bathrooms !== null;
 
   return (
@@ -98,6 +100,8 @@ export default function ListingDetailContent({ view }: ListingDetailContentProps
             </p>
           </section>
         )}
+
+        {footer}
       </section>
     </main>
   );

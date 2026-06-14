@@ -86,6 +86,7 @@ test('pre-deploy login check passes with valid credentials', async ({ page }) =>
   // below fails. Reset this user's interactions and reload so the scroller
   // always starts from a fresh, fully-populated queue.
   await deleteCustomerImageInteractions(user.id);
+  await page.goto('/');
   await page.reload();
   await expect(page.getByTestId('scroller-image')).toBeVisible();
 
@@ -174,6 +175,7 @@ test('mobile swipes record persisted Like and Skip interactions', async ({ page,
   // regardless of prior runs, exactly like the button-based smoke above.
   await ensureSeededScrollerImages();
   await deleteCustomerImageInteractions(user.id);
+  await page.goto('/');
   await page.reload();
 
   const scrollerImage = page.getByTestId('scroller-image');
