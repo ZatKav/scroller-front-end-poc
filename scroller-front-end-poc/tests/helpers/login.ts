@@ -29,6 +29,14 @@ function appPath(path: string): string {
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+function listingsPath(): string {
+  return appPath('/listings');
+}
+
+export function scrollerEntryPath(): string {
+  return appPath('/');
+}
+
 function isDeploySmoke(): boolean {
   return process.env.PLAYWRIGHT_DEPLOY_SMOKE === '1';
 }
@@ -134,6 +142,14 @@ async function assertScrollerContentVisible(page: Page): Promise<void> {
   });
 }
 
+async function assertListingsContentVisible(page: Page): Promise<void> {
+  const listingHeading = page.locator('h1').first();
+  const emptyState = page.getByText('No more listings');
+  await expect(listingHeading.or(emptyState).first()).toBeVisible({
+    timeout: 30_000,
+  });
+}
+
 /**
  * Asserts the current page is the rendered, authenticated scroller entry page:
  * scroller content is visible (image or empty state) and the visitor was not
@@ -143,6 +159,15 @@ export async function expectScrollerPageRendered(page: Page): Promise<void> {
   await assertScrollerContentVisible(page);
   const pathname = new URL(page.url()).pathname;
   expect(pathname).toBe(appPath('/'));
+  expect(pathname).not.toBe(appPath('/login'));
+}
+
+export async function expectListingsPageRendered(page: Page): Promise<void> {
+  await assertListingsContentVisible(page);
+  const pathname = new URL(page.url()).pathname;
+  expect(
+    pathname === listingsPath() || pathname.startsWith(`${listingsPath()}/`),
+  ).toBeTruthy();
   expect(pathname).not.toBe(appPath('/login'));
 }
 
@@ -192,19 +217,17 @@ function isAuthenticatedE2EUser(user: unknown): user is AuthenticatedE2EUser {
 }
 
 export interface LoginExpectationOptions {
-  // Whether to assert the scroller feed image renders as part of the login
-  // check. Defaults to true for deploy-smoke callers. Tests that drive feed
-  // interactions should pass false and assert the image themselves *after*
-  // resetting the user's interactions, otherwise a feed depleted by a prior
-  // run leaves no `scroller-image` to find and this assertion times out.
-  expectScrollerImage?: boolean;
+  // Whether to assert the post-login listings flow renders. Tests that drive the
+  // legacy image scroller should pass false, navigate to `scrollerEntryPath()`,
+  // then assert the image themselves after resetting interactions.
+  expectListingsContent?: boolean;
 }
 
 export async function loginAndExpectAuthenticated(
   page: Page,
   options: LoginExpectationOptions = {},
 ): Promise<AuthenticatedE2EUser> {
-  const { expectScrollerImage = true } = options;
+  const { expectListingsContent = true } = options;
   const { username, password } = getLoginCredentials();
 
   await page.goto(appPath('/login'));
@@ -227,24 +250,16 @@ export async function loginAndExpectAuthenticated(
   expect(isAuthenticatedE2EUser(user)).toBeTruthy();
   await bridgeDeploySmokeAuthCookie(page, loginResponse);
 
-  // Landing must be the protected scroller entry page, not just "off the login
-  // page": wait for the deployed entry path and confirm the protected scroller
-  // image renders.
-  await page.waitForURL((url) => url.pathname === appPath('/'));
-  expect(new URL(page.url()).pathname).toBe(appPath('/'));
-  if (isDeploySmoke()) {
-    await page.goto(appPath('/'));
-  }
-  // The protected page is client-rendered, and in CI the browser reaches the
-  // deployed app over host.containers.internal, whose latency has been
-  // intermittent. The default 5s assertion timeout can lapse before the client
-  // bundle finishes loading and renders the image, so give it room. (The
-  // landing is a soft navigation, so this does not re-trigger the auth check.)
-  // Skipped for callers that reset interactions first — see the option doc.
-  if (expectScrollerImage) {
-    await expect(page.getByTestId('scroller-image')).toBeVisible({
-      timeout: 30_000,
-    });
+  // Landing must be the protected listings flow, not just "off the login page".
+  await page.waitForURL((url) => (
+    url.pathname === listingsPath() || url.pathname.startsWith(`${listingsPath()}/`)
+  ));
+  const landingPathname = new URL(page.url()).pathname;
+  expect(
+    landingPathname === listingsPath() || landingPathname.startsWith(`${listingsPath()}/`),
+  ).toBeTruthy();
+  if (expectListingsContent) {
+    await assertListingsContentVisible(page);
   }
 
   return user as AuthenticatedE2EUser;

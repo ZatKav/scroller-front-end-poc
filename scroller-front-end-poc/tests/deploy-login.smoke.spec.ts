@@ -2,7 +2,7 @@ import { test } from '@playwright/test';
 import {
   expectAuthenticatedEntryRendersScroller,
   expectEntryRedirectsToLogin,
-  expectScrollerPageRendered,
+  expectListingsPageRendered,
   loginAndExpectAuthenticated,
 } from './helpers/login';
 
@@ -20,12 +20,12 @@ test('post-deploy entry path redirects to login without a duplicated base path',
   await expectEntryRedirectsToLogin(page);
 });
 
-test('post-deploy host login smoke lands on the protected scroller page', async ({ page }) => {
-  await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
-  await expectScrollerPageRendered(page);
+test('post-deploy host login smoke lands on the protected listings flow', async ({ page }) => {
+  await loginAndExpectAuthenticated(page, { expectListingsContent: false });
+  await expectListingsPageRendered(page);
 });
 
 test('authenticated direct navigation to the entry path renders the scroller', async ({ page }) => {
-  await loginAndExpectAuthenticated(page, { expectScrollerImage: false });
+  await loginAndExpectAuthenticated(page, { expectListingsContent: false });
   await expectAuthenticatedEntryRendersScroller(page);
 });
