@@ -25,6 +25,23 @@ module.exports = {
   				'sans-serif'
   			]
   		},
+  		// Zelli design tokens (from Zelli MVP Figma). Shared brand palette meant
+  		// to be adopted across the app via utilities like `bg-zelli-bg`,
+  		// `text-zelli-ink`, `bg-zelli-primary`, `border-zelli-border`. Starting
+  		// point is the 03 Sign In screen; extend as more screens are ported.
+  		colors: {
+  			zelli: {
+  				bg: '#f7f4ef', // cream page background
+  				surface: '#ffffff', // input / card surface
+  				ink: '#1f2421', // primary text
+  				muted: '#6f746f', // secondary / fine-print text
+  				placeholder: '#8a8a8a', // input placeholder
+  				border: '#d8d2c8', // input / divider border
+  				primary: '#b83f63', // magenta CTA + accent
+  				'primary-hover': '#a3395a', // primary hover/active
+  				'primary-soft': '#fdecef' // tinted primary surface (e.g. error banners)
+  			}
+  		},
   		boxShadow: {
   			card: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
   			'card-hover': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
@@ -32,7 +49,10 @@ module.exports = {
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			sm: 'calc(var(--radius) - 4px)',
+  			'zelli-input': '14px',
+  			'zelli-btn': '16px',
+  			'zelli-card': '20px'
   		}
   	}
   },
