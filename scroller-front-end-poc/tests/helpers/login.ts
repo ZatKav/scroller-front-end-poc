@@ -230,6 +230,22 @@ export async function loginAndExpectAuthenticated(
   const { expectListingsContent = true } = options;
   const { username, password } = getLoginCredentials();
 
+  // First-time sign-ins are routed through /onboarding until they build a feed
+  // (the "completed" flag lives in localStorage via PreferencesContext). These
+  // smokes exercise the authenticated listings/scroller flow, not onboarding, so
+  // pre-seed the completed flag to keep post-login routing pointed at /listings.
+  // Onboarding is covered separately.
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem(
+        'zelli.preferences.v1',
+        JSON.stringify({ filters: {}, onboardingComplete: true }),
+      );
+    } catch {
+      // Storage may be unavailable; a routing regression will still surface below.
+    }
+  });
+
   await page.goto(appPath('/login'));
   await expect(page).toHaveURL(/\/login(?:[/?#].*)?$/);
 

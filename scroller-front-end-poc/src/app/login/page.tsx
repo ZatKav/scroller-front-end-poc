@@ -3,21 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-
-/** Zelli wordmark with the accent dot, matching the Figma 03 Sign In screen. */
-function ZelliWordmark() {
-    return (
-        <div className="flex items-start">
-            <span className="text-4xl font-bold leading-none tracking-tight text-zelli-ink">
-                Zelli
-            </span>
-            <span
-                aria-hidden
-                className="mt-1 ml-1 h-2 w-2 rounded-full bg-zelli-primary"
-            />
-        </div>
-    );
-}
+import { usePreferences } from '@/contexts/PreferencesContext';
+import ZelliWordmark from '@/components/ZelliWordmark';
 
 export default function LoginPage() {
     const [username, setUsername] = useState('');
@@ -25,13 +12,19 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { login, user, loading: authLoading } = useAuth();
+    const { onboardingComplete } = usePreferences();
     const router = useRouter();
+
+    // New sign-ins go through onboarding to build their search filters; once
+    // that's done (persisted in the preferences store) we send them straight to
+    // their feed instead.
+    const postLoginRoute = onboardingComplete ? '/listings' : '/onboarding';
 
     useEffect(() => {
         if (user) {
-            router.replace('/listings');
+            router.replace(postLoginRoute);
         }
-    }, [user, router]);
+    }, [user, router, postLoginRoute]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,7 +34,7 @@ export default function LoginPage() {
         try {
             const success = await login(username, password);
             if (success) {
-                router.replace('/listings');
+                router.replace(postLoginRoute);
             } else {
                 setError('Invalid username or password');
             }

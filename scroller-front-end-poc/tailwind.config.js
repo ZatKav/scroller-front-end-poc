@@ -39,7 +39,9 @@ module.exports = {
   				border: '#d8d2c8', // input / divider border
   				primary: '#b83f63', // magenta CTA + accent
   				'primary-hover': '#a3395a', // primary hover/active
-  				'primary-soft': '#fdecef' // tinted primary surface (e.g. error banners)
+  				'primary-soft': '#fdecef', // tinted primary surface (e.g. error banners)
+  				accent: '#3f6f4e', // green: step indicator, selected chips, secondary buttons
+  				'accent-soft': '#e7eee7' // selected chip fill
   			}
   		},
   		boxShadow: {
