@@ -12,7 +12,7 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { login, user, loading: authLoading } = useAuth();
-    const { onboardingComplete } = usePreferences();
+    const { onboardingComplete, hydrated: preferencesHydrated } = usePreferences();
     const router = useRouter();
 
     // New sign-ins go through onboarding to build their search filters; once
@@ -21,13 +21,16 @@ export default function LoginPage() {
     const postLoginRoute = onboardingComplete ? '/listings' : '/onboarding';
 
     useEffect(() => {
-        if (user) {
+        if (user && preferencesHydrated) {
             router.replace(postLoginRoute);
         }
-    }, [user, router, postLoginRoute]);
+    }, [user, router, postLoginRoute, preferencesHydrated]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!preferencesHydrated) {
+            return;
+        }
         setError('');
         setLoading(true);
 
@@ -45,7 +48,7 @@ export default function LoginPage() {
         }
     };
 
-    if (authLoading) {
+    if (authLoading || !preferencesHydrated) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-zelli-bg">
                 <div className="text-center">
