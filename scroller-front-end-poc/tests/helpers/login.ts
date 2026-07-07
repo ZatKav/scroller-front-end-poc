@@ -33,6 +33,10 @@ function listingsPath(): string {
   return appPath('/listings');
 }
 
+function isListingsPath(pathname: string): boolean {
+  return pathname === listingsPath() || pathname.startsWith(`${listingsPath()}/`);
+}
+
 export function scrollerEntryPath(): string {
   return appPath('/');
 }
@@ -143,9 +147,9 @@ async function assertScrollerContentVisible(page: Page): Promise<void> {
 }
 
 async function assertListingsContentVisible(page: Page): Promise<void> {
-  const listingHeading = page.locator('h1').first();
+  const listingControls = page.getByRole('button', { name: /delete preferences/i });
   const emptyState = page.getByText('No more listings');
-  await expect(listingHeading.or(emptyState).first()).toBeVisible({
+  await expect(listingControls.or(emptyState).first()).toBeVisible({
     timeout: 30_000,
   });
 }
@@ -165,9 +169,7 @@ export async function expectScrollerPageRendered(page: Page): Promise<void> {
 export async function expectListingsPageRendered(page: Page): Promise<void> {
   await assertListingsContentVisible(page);
   const pathname = new URL(page.url()).pathname;
-  expect(
-    pathname === listingsPath() || pathname.startsWith(`${listingsPath()}/`),
-  ).toBeTruthy();
+  expect(isListingsPath(pathname), `Expected listings path, got ${pathname}`).toBeTruthy();
   expect(pathname).not.toBe(appPath('/login'));
 }
 
@@ -267,12 +269,11 @@ export async function loginAndExpectAuthenticated(
   await bridgeDeploySmokeAuthCookie(page, loginResponse);
 
   // Landing must be the protected listings flow, not just "off the login page".
-  await page.waitForURL((url) => (
-    url.pathname === listingsPath() || url.pathname.startsWith(`${listingsPath()}/`)
-  ));
+  await page.waitForURL((url) => isListingsPath(url.pathname));
   const landingPathname = new URL(page.url()).pathname;
   expect(
-    landingPathname === listingsPath() || landingPathname.startsWith(`${listingsPath()}/`),
+    isListingsPath(landingPathname),
+    `Expected post-login listings path, got ${landingPathname}`,
   ).toBeTruthy();
   if (expectListingsContent) {
     await assertListingsContentVisible(page);
