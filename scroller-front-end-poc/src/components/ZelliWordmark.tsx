@@ -13,7 +13,7 @@ export default function ZelliWordmark({ className = '' }: { className?: string }
         {'ı'}
         <span
           aria-hidden
-          className="absolute left-1/2 top-[0.08em] h-[0.22em] w-[0.22em] -translate-x-1/2 rounded-full bg-zelli-primary"
+          className="absolute left-[calc(50%+0.016em-0.03125px)] top-[calc(0.08em-2px)] h-[0.22em] w-[0.22em] -translate-x-1/2 rounded-full bg-zelli-primary"
         />
       </span>
     </span>

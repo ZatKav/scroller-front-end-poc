@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ListingDetailContent from '@/components/ListingDetailContent';
+import ZelliBottomNav from '@/components/ZelliBottomNav';
 import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -165,7 +166,7 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
     });
   }
 
-  async function recordPreference(action: 0 | 1) {
+  async function recordPreference(action: 0 | 1 | 2) {
     if (!currentListing || !user || actionInFlightRef.current) {
       return;
     }
@@ -231,74 +232,108 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
 
   if (initialLoading) {
     return (
-      <main className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
-        <p className="text-gray-600">Loading listings...</p>
+      <main className="flex min-h-[100dvh] items-center justify-center bg-zelli-bg px-4 py-8">
+        <p className="text-zelli-muted">Loading listings...</p>
       </main>
     );
   }
 
   if (!currentListing && loadingMore) {
     return (
-      <main className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
-        <p role="status" className="text-gray-600">Loading more listings...</p>
+      <main className="flex min-h-[100dvh] items-center justify-center bg-zelli-bg px-4 py-8">
+        <p role="status" className="text-zelli-muted">Loading more listings...</p>
       </main>
     );
   }
 
   if (!currentListing) {
     return (
-      <main className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
-        <section className="w-full max-w-md rounded-lg border border-white/70 bg-white/85 p-6 text-center shadow-sm">
-          <h1 className="text-2xl font-semibold text-gray-950">No more listings</h1>
-          <p className="mt-3 text-sm text-gray-600">
-            There are no more listings to review right now.
-          </p>
-          {queueError && <p className="mt-4 text-sm text-red-600">{queueError}</p>}
-        </section>
-      </main>
+      <>
+        <main className="flex min-h-[100dvh] items-center justify-center bg-zelli-bg px-6 pb-24 pt-8">
+          <section className="w-full max-w-[420px] rounded-zelli-card border border-zelli-border bg-zelli-surface p-6 text-center shadow-sm">
+            <h1 className="text-2xl font-bold text-zelli-ink">No more listings</h1>
+            <p className="mt-3 text-sm text-zelli-muted">
+              There are no more listings to review right now.
+            </p>
+            {queueError && <p className="mt-4 text-sm text-zelli-primary">{queueError}</p>}
+          </section>
+        </main>
+        <ZelliBottomNav active="feed" />
+      </>
     );
   }
 
+  const feedHeader = (
+    <div>
+      <h1 className="text-[26px] font-bold leading-tight text-zelli-accent">Homes for you</h1>
+      <p className="mt-1 text-sm text-zelli-ink">
+        Skip or save &mdash; every choice helps Zelli learn.
+      </p>
+    </div>
+  );
+
   const controls = (
-    <div className="flex w-full flex-col gap-3 pb-4">
-      <div className="flex flex-wrap justify-center gap-3">
-        <button
-          type="button"
-          onClick={() => recordPreference(0)}
-          disabled={submitting || resettingPreferences}
-          className="min-w-28 rounded-lg bg-gray-200 px-6 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Skip
-        </button>
-        <button
-          type="button"
-          onClick={() => recordPreference(1)}
-          disabled={submitting || resettingPreferences}
-          className="min-w-28 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Like
-        </button>
+    <div className="flex w-full flex-col gap-4 pt-1">
+      <div className="flex items-start justify-center gap-8">
+        <div className="flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            aria-label="Skip"
+            onClick={() => recordPreference(0)}
+            disabled={submitting || resettingPreferences}
+            className="flex h-14 w-14 items-center justify-center rounded-full border border-zelli-border bg-zelli-surface text-2xl leading-none text-zelli-ink transition-colors hover:border-zelli-ink focus:outline-none focus:ring-2 focus:ring-zelli-ink focus:ring-offset-2 focus:ring-offset-zelli-bg disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span aria-hidden>&#10005;</span>
+          </button>
+          <span className="text-[11px] font-bold text-zelli-ink">Skip</span>
+        </div>
+        <div className="flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            aria-label="Maybe"
+            onClick={() => recordPreference(2)}
+            disabled={submitting || resettingPreferences}
+            className="flex h-14 w-14 items-center justify-center rounded-full border border-zelli-border bg-zelli-surface text-2xl leading-none text-zelli-ink transition-colors hover:border-zelli-ink focus:outline-none focus:ring-2 focus:ring-zelli-ink focus:ring-offset-2 focus:ring-offset-zelli-bg disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span aria-hidden>?</span>
+          </button>
+          <span className="text-[11px] font-bold text-zelli-ink">Maybe</span>
+        </div>
+        <div className="flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            aria-label="Save"
+            onClick={() => recordPreference(1)}
+            disabled={submitting || resettingPreferences}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-zelli-primary text-2xl leading-none text-white transition-colors hover:bg-zelli-primary-hover focus:outline-none focus:ring-2 focus:ring-zelli-primary focus:ring-offset-2 focus:ring-offset-zelli-bg disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span aria-hidden>&#9829;</span>
+          </button>
+          <span className="text-[11px] font-bold text-zelli-ink">Save</span>
+        </div>
       </div>
+
       {loadingMore && (
-        <p role="status" className="text-center text-sm text-gray-600">
+        <p role="status" className="text-center text-sm text-zelli-muted">
           Loading more listings...
         </p>
       )}
       {queueError && (
-        <p role="status" className="text-center text-sm text-red-600">
+        <p role="status" className="text-center text-sm text-zelli-primary">
           {queueError}
         </p>
       )}
       {actionError && (
-        <p role="status" className="text-center text-sm text-red-600">
+        <p role="status" className="text-center text-sm text-zelli-primary">
           {actionError}
         </p>
       )}
+
       <button
         type="button"
         onClick={deleteListingPreferences}
         disabled={submitting || resettingPreferences}
-        className="mx-auto mt-2 text-sm font-semibold text-gray-700 underline-offset-4 hover:text-gray-950 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+        className="mx-auto text-sm font-bold text-zelli-muted underline-offset-4 hover:text-zelli-ink hover:underline disabled:cursor-not-allowed disabled:opacity-50"
       >
         {resettingPreferences ? 'Deleting preferences...' : 'Delete preferences'}
       </button>
@@ -306,6 +341,13 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
   );
 
   return (
-    <ListingDetailContent view={mapListingToView(currentListing)} footer={controls} />
+    <>
+      <ListingDetailContent
+        view={mapListingToView(currentListing)}
+        header={feedHeader}
+        footer={controls}
+      />
+      <ZelliBottomNav active="feed" />
+    </>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
+import { useAuth } from '@/contexts/AuthContext';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   BEDROOM_OPTIONS,
@@ -59,9 +61,12 @@ function CurrencyField({
 
 export default function OnboardingWizard() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const { completeOnboarding } = usePreferences();
 
   const [step, setStep] = useState(1);
+  const [buildingFeed, setBuildingFeed] = useState(false);
+  const [feedBuildError, setFeedBuildError] = useState<string | null>(null);
 
   // Draft answers — written to the preferences store only when onboarding
   // completes, so a mid-flow refresh simply restarts rather than persisting a
@@ -101,7 +106,16 @@ export default function OnboardingWizard() {
     );
   };
 
-  const finish = () => {
+  const finish = async () => {
+    if (buildingFeed || authLoading) {
+      return;
+    }
+
+    if (!user) {
+      setFeedBuildError('Please sign in again before building your feed.');
+      return;
+    }
+
     const finalFilters: SearchFilters = {
       locations: flexibleLocation ? [] : locations,
       flexibleLocation,
@@ -111,8 +125,20 @@ export default function OnboardingWizard() {
       propertyType,
       mustHaves,
     };
-    completeOnboarding(finalFilters);
-    router.push(FEED_ROUTE);
+
+    setBuildingFeed(true);
+    setFeedBuildError(null);
+
+    try {
+      await scrollerCustomerInteractionsDbApiClient.deleteCustomerListingInteractions(user.id);
+      completeOnboarding(finalFilters);
+      router.push(FEED_ROUTE);
+    } catch (error) {
+      console.error('Failed to reset listing interactions before building feed:', error);
+      setFeedBuildError('Could not build your feed. Please try again.');
+    } finally {
+      setBuildingFeed(false);
+    }
   };
 
   switch (step) {
@@ -265,12 +291,19 @@ export default function OnboardingWizard() {
           step={4}
           title="What matters most?"
           subtitle="Pick a few things Zelli should look out for."
-          primaryLabel="Build my feed"
+          primaryLabel={buildingFeed ? 'Building feed...' : 'Build my feed'}
           onPrimary={finish}
+          primaryDisabled={buildingFeed || authLoading}
           secondaryLabel="Skip for now"
           onSecondary={finish}
+          secondaryDisabled={buildingFeed || authLoading}
         >
           <FieldLabel>Must haves</FieldLabel>
+          {feedBuildError && (
+            <p role="alert" className="mt-3 text-sm font-medium text-zelli-primary">
+              {feedBuildError}
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             {MUST_HAVE_OPTIONS.map((option) => (
               <ChoiceChip

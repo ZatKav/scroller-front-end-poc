@@ -16,6 +16,7 @@ interface OnboardingChromeProps {
   primaryDisabled?: boolean;
   secondaryLabel: string;
   onSecondary: () => void;
+  secondaryDisabled?: boolean;
 }
 
 /**
@@ -34,6 +35,7 @@ export default function OnboardingChrome({
   primaryDisabled = false,
   secondaryLabel,
   onSecondary,
+  secondaryDisabled = false,
 }: OnboardingChromeProps) {
   return (
     <div className="flex min-h-screen justify-center bg-zelli-bg px-6 py-12">
@@ -56,7 +58,7 @@ export default function OnboardingChrome({
           <PrimaryButton type="button" onClick={onPrimary} disabled={primaryDisabled}>
             {primaryLabel}
           </PrimaryButton>
-          <SecondaryButton type="button" onClick={onSecondary}>
+          <SecondaryButton type="button" onClick={onSecondary} disabled={secondaryDisabled}>
             {secondaryLabel}
           </SecondaryButton>
         </div>

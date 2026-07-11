@@ -62,7 +62,8 @@ describe('ListingFlow', () => {
     expect(screen.getByText('Loading listings...')).toBeTruthy();
     expect(await screen.findByRole('heading', { name: 'Listing 101' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Skip' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Like' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Maybe' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Delete preferences' })).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Show me something else' })).toBeNull();
@@ -98,7 +99,7 @@ describe('ListingFlow', () => {
     await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/202'));
   });
 
-  it('records Like and advances through the same listing action contract', async () => {
+  it('records Save and advances through the same listing action contract', async () => {
     const user = userEvent.setup();
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -112,7 +113,7 @@ describe('ListingFlow', () => {
 
     await screen.findByRole('heading', { name: 'Listing 301' });
     await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'Like' }));
+      await user.click(screen.getByRole('button', { name: 'Save' }));
     });
 
     expect(mockCreateListingInteraction).toHaveBeenCalledWith(
@@ -123,6 +124,33 @@ describe('ListingFlow', () => {
       }),
     );
     expect(await screen.findByRole('heading', { name: 'Listing 302' })).toBeTruthy();
+  });
+
+  it('records Maybe as action 2 and advances to the next ranked listing', async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [makeListing(402)] }),
+    } as Response).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [] }),
+    } as Response);
+
+    render(<ListingFlow initialListing={makeListing(401)} />);
+
+    await screen.findByRole('heading', { name: 'Listing 401' });
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Maybe' }));
+    });
+
+    expect(mockCreateListingInteraction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer_id: 42,
+        listing_id: 401,
+        action: 2,
+      }),
+    );
+    expect(await screen.findByRole('heading', { name: 'Listing 402' })).toBeTruthy();
   });
 
   it('shows the terminal state inside the listings flow', async () => {
@@ -162,7 +190,7 @@ describe('ListingFlow', () => {
     await waitFor(() => expect(screen.queryByText('Loading more listings...')).toBeNull());
 
     await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'Like' }));
+      await user.click(screen.getByRole('button', { name: 'Save' }));
     });
 
     expect(screen.queryByRole('heading', { name: 'No more listings' })).toBeNull();

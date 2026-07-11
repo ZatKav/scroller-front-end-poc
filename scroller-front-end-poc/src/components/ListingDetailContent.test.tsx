@@ -25,8 +25,8 @@ describe('ListingDetailContent', () => {
       screen.getByRole('heading', { name: 'Riverside Apartment' }),
     ).toBeTruthy();
     expect(screen.getByTestId('listing-price').textContent).toBe('£450,000');
-    expect(screen.getByTestId('listing-stats').textContent).toContain('Bedrooms');
-    expect(screen.getByTestId('listing-stats').textContent).toContain('Bathrooms');
+    expect(screen.getByTestId('listing-stats').textContent).toContain('2 bed');
+    expect(screen.getByTestId('listing-stats').textContent).toContain('1 bath');
     expect(screen.getByTestId('listing-location').textContent).toBe(
       '1 River Way, RH1 1AA',
     );
@@ -47,10 +47,8 @@ describe('ListingDetailContent', () => {
 
     // Bedrooms remains, but the bathrooms stat and the description section are
     // gone entirely (no empty placeholder).
-    expect(screen.getByTestId('listing-stats').textContent).toContain('Bedrooms');
-    expect(screen.getByTestId('listing-stats').textContent).not.toContain(
-      'Bathrooms',
-    );
+    expect(screen.getByTestId('listing-stats').textContent).toContain('2 bed');
+    expect(screen.getByTestId('listing-stats').textContent).not.toContain('bath');
     expect(screen.queryByTestId('listing-description')).toBeNull();
   });
 

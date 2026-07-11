@@ -13,10 +13,14 @@ export interface CustomerImageInteraction extends Omit<CustomerImageInteractionC
   viewed_at: string;
 }
 
+// action: 0 = skip, 1 = save/like, 2 = maybe. NOTE: the scroller-customer-
+// interactions-db backend must accept 2 as well (Pydantic Field le, the
+// `action IN (0, 1)` DB check constraint, and the generated client) before a
+// Maybe reaches persistence — otherwise the create call 422s / fails the check.
 export interface CustomerListingInteractionCreate {
   customer_id: number;
   listing_id: number;
-  action: 0 | 1;
+  action: 0 | 1 | 2;
   view_duration_ms?: number;
 }
 

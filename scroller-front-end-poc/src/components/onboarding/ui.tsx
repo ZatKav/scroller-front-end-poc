@@ -27,7 +27,7 @@ export function SecondaryButton({
   return (
     <button
       {...props}
-      className={`h-[52px] w-full rounded-zelli-btn border border-zelli-accent bg-zelli-bg text-base font-bold text-zelli-accent transition-colors hover:bg-zelli-accent-soft focus:outline-none focus:ring-2 focus:ring-zelli-accent focus:ring-offset-2 focus:ring-offset-zelli-bg ${className}`}
+      className={`h-[52px] w-full rounded-zelli-btn border border-zelli-accent bg-zelli-bg text-base font-bold text-zelli-accent transition-colors hover:bg-zelli-accent-soft focus:outline-none focus:ring-2 focus:ring-zelli-accent focus:ring-offset-2 focus:ring-offset-zelli-bg disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       {children}
     </button>
