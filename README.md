@@ -93,6 +93,9 @@ The app also exposes a protected listing review flow alongside the image scrolle
   `DELETE /customer-listing-interactions/{customer_id}` after the interactions proxy verifies the signed-in
   customer id, then reloads the listing stack-rank queue; image preferences and the image scroller reset
   behavior are unchanged.
+- Completing onboarding also deletes the signed-in customer's listing interactions before routing to
+  `/listings`, so rebuilding a search profile starts from a fresh listing queue instead of inheriting a
+  previously exhausted review history.
 - `src/lib/stack-rank-client.ts` contains the server-side client for the upstream
   `/api/listings/stack-rank` endpoint.
 - `src/lib/listing-stack-rank-queue.ts` contains the queue contract: deduplicate ranked listings by

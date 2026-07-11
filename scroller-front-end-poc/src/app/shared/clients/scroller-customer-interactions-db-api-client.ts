@@ -120,7 +120,7 @@ export const scrollerCustomerInteractionsDbApiClient = {
     customerId: number,
     skip: number = 0,
     limit: number = 100,
-    action?: 0 | 1,
+    action?: 0 | 1 | 2,
   ): Promise<CustomerListingInteraction[]> {
     const queryParams = new URLSearchParams({
       skip: String(skip),

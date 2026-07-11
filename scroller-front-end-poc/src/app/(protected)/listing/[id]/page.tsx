@@ -6,6 +6,7 @@ import {
 } from '@/lib/enrichment-db-client';
 import { mapListingToView } from '@/lib/listing-detail-view';
 import ListingDetailContent from '@/components/ListingDetailContent';
+import RequestDetailsButton from '@/components/RequestDetailsButton';
 
 interface ListingPageProps {
   params: Promise<{
@@ -37,12 +38,15 @@ export default async function ListingPage({ params }: ListingPageProps) {
   try {
     const listing = await fetchListingDetail(listingId);
     const footer = (
-      <Link
-        href="/listings"
-        className="mx-auto inline-flex min-h-11 items-center justify-center rounded-lg bg-gray-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gray-950"
-      >
-        Show me something else
-      </Link>
+      <div className="mt-1 flex flex-col items-center gap-3">
+        <RequestDetailsButton />
+        <Link
+          href="/listings"
+          className="text-sm font-bold text-zelli-muted underline-offset-4 hover:text-zelli-ink hover:underline"
+        >
+          Show me something else
+        </Link>
+      </div>
     );
     return <ListingDetailContent view={mapListingToView(listing)} footer={footer} />;
   } catch (error) {
