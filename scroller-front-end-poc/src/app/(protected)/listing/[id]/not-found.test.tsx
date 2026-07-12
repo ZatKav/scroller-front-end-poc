@@ -8,7 +8,7 @@ describe('listing detail not-found state', () => {
     expect(screen.getByRole('heading', { name: 'Listing not found' })).toBeTruthy();
     expect(screen.getByText(/Check the listing id/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Back to feed' }).getAttribute('href')).toBe(
-      '/',
+      '/listings',
     );
   });
 });

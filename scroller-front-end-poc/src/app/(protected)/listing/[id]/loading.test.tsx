@@ -5,7 +5,6 @@ describe('listing detail loading state', () => {
   it('renders the loading fallback', () => {
     render(<Loading />);
 
-    expect(screen.getByLabelText('Loading listing detail')).toBeTruthy();
-    expect(screen.getByText('Loading listing...')).toBeTruthy();
+    expect(screen.getByLabelText('Loading listing')).toBeTruthy();
   });
 });

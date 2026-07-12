@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import ListingDetailContent from '@/components/ListingDetailContent';
 import ZelliBottomNav from '@/components/ZelliBottomNav';
 import { scrollerCustomerInteractionsDbApiClient } from '@/app/shared/clients/scroller-customer-interactions-db-api-client';
@@ -14,8 +13,11 @@ import { appPath } from '@/lib/base-path';
 import { mapListingToView } from '@/lib/listing-detail-view';
 import type { ListingDetail } from '@/types/enrichment-db';
 
+// Fetch just the first listing on entry so it paints fast, then hydrate the rest
+// of the preload buffer (LISTING_STACK_RANK_QUEUE_LIMIT) in the background.
+const INITIAL_LOAD_LIMIT = 1;
 const CONTINUATION_LOAD_LIMIT = LISTING_STACK_RANK_QUEUE_LIMIT;
-const PREFETCH_THRESHOLD = 1;
+const PREFETCH_THRESHOLD = 2;
 
 interface ListingFlowProps {
   initialListing?: ListingDetail | null;
@@ -36,7 +38,6 @@ async function fetchListingWindow(limit: number): Promise<ListingStackRankWindow
 }
 
 export default function ListingFlow({ initialListing = null }: ListingFlowProps) {
-  const router = useRouter();
   const { user } = useAuth();
   const [listings, setListings] = useState<ListingDetail[]>(
     initialListing ? [initialListing] : [],
@@ -62,10 +63,20 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
   }, [currentListing?.id]);
 
   useEffect(() => {
-    if (currentListing) {
-      router.replace(`/listings/${currentListing.id}`);
+    // Update the address bar to the current listing without a route navigation:
+    // a router.push/replace here would remount this component via the
+    // /listings/[id] segment (re-fetching the listing and flashing its loading
+    // skeleton) on every advance. history.replaceState keeps the persistent
+    // client queue — and its prefetch — intact so advancing is instant, while a
+    // refresh/deep-link still resolves the /listings/[id] route server-side.
+    if (currentListing && typeof window !== 'undefined') {
+      window.history.replaceState(
+        window.history.state,
+        '',
+        appPath(`/listings/${currentListing.id}`),
+      );
     }
-  }, [currentListing, router]);
+  }, [currentListing]);
 
   async function loadMoreListings(limit: number, initial = false) {
     if (refillInFlightRef.current) {
@@ -223,7 +234,18 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
 
   useEffect(() => {
     mountedRef.current = true;
-    void loadMoreListings(CONTINUATION_LOAD_LIMIT, initialListing === null);
+
+    void (async () => {
+      // First paint: fetch only the first listing so it appears quickly even
+      // when a listing carries many (base64) images.
+      if (initialListing === null) {
+        await loadMoreListings(INITIAL_LOAD_LIMIT, true);
+      }
+      // Then hydrate the preload buffer in the background (current + 5 ahead).
+      if (mountedRef.current) {
+        void loadMoreListings(CONTINUATION_LOAD_LIMIT);
+      }
+    })();
 
     return () => {
       mountedRef.current = false;

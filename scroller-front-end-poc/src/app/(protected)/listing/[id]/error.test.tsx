@@ -31,7 +31,7 @@ describe('listing detail error state', () => {
     render(<ErrorPage error={new Error()} reset={jest.fn()} />);
 
     expect(screen.getByRole('link', { name: 'Back to feed' }).getAttribute('href')).toBe(
-      '/',
+      '/listings',
     );
   });
 
