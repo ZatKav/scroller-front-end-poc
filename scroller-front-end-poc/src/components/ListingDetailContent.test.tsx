@@ -82,7 +82,7 @@ describe('ListingDetailContent', () => {
     render(<ListingDetailContent view={makeView()} />);
 
     expect(
-      screen.getByRole('link', { name: 'Show me something else' }).getAttribute('href'),
+      screen.getByRole('link', { name: 'Show me something I will like' }).getAttribute('href'),
     ).toBe('/listings');
   });
 });
