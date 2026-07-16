@@ -66,7 +66,7 @@ describe('ListingFlow', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Delete preferences' })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: 'Show me something else' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Show me something I will like' })).toBeNull();
     expect(mockFetch).toHaveBeenCalledWith('/api/listings/stack-rank?limit=4');
     await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/101'));
   });
