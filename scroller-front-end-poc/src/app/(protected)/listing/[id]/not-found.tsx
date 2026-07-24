@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { appPath } from '@/lib/base-path';
 
 export default function NotFound() {
   return (
@@ -10,7 +9,7 @@ export default function NotFound() {
           Check the listing id and return to the feed when you are ready.
         </p>
         <Link
-          href={appPath('/listings')}
+          href="/listings"
           className="mt-6 inline-flex h-[52px] items-center justify-center rounded-zelli-btn bg-zelli-primary px-6 text-base font-bold text-white transition-colors hover:bg-zelli-primary-hover"
         >
           Back to feed

@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { appPath } from '@/lib/base-path';
 
 interface ErrorPageProps {
   error: Error & { digest?: string };
@@ -30,7 +29,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
             Try again
           </button>
           <Link
-            href={appPath('/listings')}
+            href="/listings"
             className="flex h-[52px] w-full items-center justify-center rounded-zelli-btn border border-zelli-border bg-zelli-surface text-base font-bold text-zelli-ink transition-colors hover:border-zelli-ink"
           >
             Back to feed
