@@ -39,6 +39,18 @@ function makeListing(id: number): ListingDetail {
   };
 }
 
+function makeListingWithImages(id: number, imageData: string[]): ListingDetail {
+  return {
+    ...makeListing(id),
+    images: imageData.map((data, index) => ({
+      id: id * 10 + index,
+      image_data: data,
+      is_primary: index === 0,
+      position: index,
+    })),
+  };
+}
+
 let historySpy: jest.SpyInstance;
 
 // The URL the flow last synced via history.replaceState (advancing is now
@@ -94,6 +106,7 @@ describe('ListingFlow', () => {
       expect(mockFetch).toHaveBeenCalledWith('/api/listings/stack-rank?limit=6'),
     );
     await waitFor(() => expect(lastHistoryUrl()).toBe('/listings/101'));
+    expect(historySpy).toHaveBeenLastCalledWith(null, '', '/listings/101');
   });
 
   it('records Skip and advances to the next ranked listing', async () => {
@@ -122,6 +135,39 @@ describe('ListingFlow', () => {
     );
     expect(await screen.findByRole('heading', { name: 'Listing 202' })).toBeTruthy();
     await waitFor(() => expect(lastHistoryUrl()).toBe('/listings/202'));
+  });
+
+  it('starts the next listing at its first image after advancing from a later image', async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        listings: [makeListingWithImages(212, ['CCCC', 'DDDD'])],
+      }),
+    } as Response).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [] }),
+    } as Response);
+
+    render(<ListingFlow initialListing={makeListingWithImages(211, ['AAAA', 'BBBB'])} />);
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Go to image 2' }));
+    });
+    expect(screen.getByTestId('carousel-image')).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,BBBB',
+    );
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Skip' }));
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Listing 212' })).toBeTruthy();
+    expect(screen.getByTestId('carousel-image')).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,CCCC',
+    );
   });
 
   it('records Save and advances through the same listing action contract', async () => {

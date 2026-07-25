@@ -5,6 +5,7 @@ export default function Loading() {
         aria-label="Loading listing"
         className="mx-auto flex w-full max-w-[420px] flex-col gap-5 py-4"
       >
+        <p role="status" className="sr-only">Loading listing...</p>
         <div className="animate-pulse rounded-zelli-card border border-zelli-border bg-zelli-surface p-4">
           <div className="aspect-[4/3] w-full rounded-xl bg-zelli-accent-soft" />
           <div className="mt-4 flex flex-col gap-3">

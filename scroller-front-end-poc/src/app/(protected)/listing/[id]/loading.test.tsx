@@ -6,5 +6,6 @@ describe('listing detail loading state', () => {
     render(<Loading />);
 
     expect(screen.getByLabelText('Loading listing')).toBeTruthy();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading listing...');
   });
 });

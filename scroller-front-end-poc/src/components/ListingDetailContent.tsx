@@ -43,7 +43,7 @@ export default function ListingDetailContent({ view, header, footer }: ListingDe
         {header}
 
         <article className="flex flex-col gap-4 rounded-zelli-card border border-zelli-border bg-zelli-surface p-4 shadow-sm">
-          <ListingImageCarousel images={view.images} />
+          <ListingImageCarousel key={view.id} images={view.images} />
 
           <div className="flex flex-col gap-3">
             {(view.title || view.location || view.price) && (

@@ -71,7 +71,7 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
     // refresh/deep-link still resolves the /listings/[id] route server-side.
     if (currentListing && typeof window !== 'undefined') {
       window.history.replaceState(
-        window.history.state,
+        null,
         '',
         appPath(`/listings/${currentListing.id}`),
       );
