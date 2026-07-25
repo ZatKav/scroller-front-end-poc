@@ -1,14 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PreferencesProvider } from "@/contexts/PreferencesContext";
 import { appPath } from "@/lib/base-path";
-
-const inter = Inter({
-    variable: "--font-sans",
-    subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
     title: "Scroller",
@@ -57,7 +51,7 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body className={`${inter.variable} font-sans antialiased`}>
+            <body className="font-sans antialiased">
                 <AuthProvider>
                     <PreferencesProvider>
                         {children}

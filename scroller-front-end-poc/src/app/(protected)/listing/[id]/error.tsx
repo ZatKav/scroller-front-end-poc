@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { appPath } from '@/lib/base-path';
 
 interface ErrorPageProps {
   error: Error & { digest?: string };
@@ -15,23 +14,23 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   }, [error]);
 
   return (
-    <main className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
-      <section className="w-full max-w-md rounded-lg border border-white/70 bg-white/85 p-6 text-center shadow-sm">
-        <h1 className="text-2xl font-semibold text-gray-950">Listing could not load</h1>
-        <p className="mt-3 text-sm text-gray-600">
+    <main className="flex min-h-[100dvh] items-center justify-center bg-zelli-bg px-6 py-8">
+      <section className="w-full max-w-[420px] rounded-zelli-card border border-zelli-border bg-zelli-surface p-6 text-center shadow-sm">
+        <h1 className="text-2xl font-bold text-zelli-ink">Listing could not load</h1>
+        <p className="mt-3 text-sm text-zelli-muted">
           {error.message || 'Something went wrong while preparing this listing.'}
         </p>
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+        <div className="mt-6 flex flex-col gap-3">
           <button
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            onClick={reset}
             type="button"
+            onClick={reset}
+            className="flex h-[52px] w-full items-center justify-center rounded-zelli-btn bg-zelli-primary text-base font-bold text-white transition-colors hover:bg-zelli-primary-hover"
           >
             Try again
           </button>
           <Link
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            href={appPath('/')}
+            href="/listings"
+            className="flex h-[52px] w-full items-center justify-center rounded-zelli-btn border border-zelli-border bg-zelli-surface text-base font-bold text-zelli-ink transition-colors hover:border-zelli-ink"
           >
             Back to feed
           </Link>

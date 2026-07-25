@@ -48,7 +48,7 @@ describe('listing detail page', () => {
     ).toBeTruthy();
     expect(screen.getByTestId('listing-price').textContent).toBe('£450,000');
     expect(
-      screen.getByRole('link', { name: 'Show me something else' }).getAttribute('href'),
+      screen.getByRole('link', { name: 'Show me something I will like' }).getAttribute('href'),
     ).toBe('/listings');
     expect(mockNotFound).not.toHaveBeenCalled();
   });

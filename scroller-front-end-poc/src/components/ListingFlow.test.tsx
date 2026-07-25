@@ -39,10 +39,32 @@ function makeListing(id: number): ListingDetail {
   };
 }
 
+function makeListingWithImages(id: number, imageData: string[]): ListingDetail {
+  return {
+    ...makeListing(id),
+    images: imageData.map((data, index) => ({
+      id: id * 10 + index,
+      image_data: data,
+      is_primary: index === 0,
+      position: index,
+    })),
+  };
+}
+
+let historySpy: jest.SpyInstance;
+
+// The URL the flow last synced via history.replaceState (advancing is now
+// client-side, not a router navigation).
+function lastHistoryUrl(): string | undefined {
+  const { calls } = historySpy.mock;
+  return calls.length ? (calls[calls.length - 1][2] as string) : undefined;
+}
+
 beforeEach(() => {
   global.fetch = mockFetch as unknown as typeof fetch;
   mockFetch.mockReset();
   mockReplace.mockClear();
+  historySpy = jest.spyOn(window.history, 'replaceState');
   mockUseAuth.mockReturnValue({ user: { id: 42 } });
   mockCreateListingInteraction.mockReset();
   mockCreateListingInteraction.mockResolvedValue({});
@@ -50,12 +72,57 @@ beforeEach(() => {
   mockDeleteListingInteractions.mockResolvedValue({ deleted: 0 });
 });
 
+afterEach(() => {
+  jest.useRealTimers();
+  historySpy.mockRestore();
+});
+
 describe('ListingFlow', () => {
-  it('loads the listing stack-rank queue and moves /listings to the first listing URL', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ listings: [makeListing(101), makeListing(102)] }),
-    } as Response);
+  it('defers URL sync and preserves the router history state', () => {
+    jest.useFakeTimers();
+    const routerState = { __NA: true, tree: ['listings'] };
+    window.history.replaceState(routerState, '', '/listings');
+    historySpy.mockClear();
+    mockFetch.mockImplementation(() => new Promise<Response>(() => {}));
+
+    const { unmount } = render(<ListingFlow initialListing={makeListing(100)} />);
+
+    expect(historySpy).not.toHaveBeenCalled();
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+
+    expect(historySpy).toHaveBeenCalledWith(routerState, '', '/listings/100');
+    unmount();
+  });
+
+  it('cancels a pending URL sync when unmounted', () => {
+    jest.useFakeTimers();
+    mockFetch.mockImplementation(() => new Promise<Response>(() => {}));
+
+    const { unmount } = render(<ListingFlow initialListing={makeListing(100)} />);
+
+    expect(historySpy).not.toHaveBeenCalled();
+    unmount();
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+
+    expect(historySpy).not.toHaveBeenCalled();
+  });
+
+  it('loads the first listing fast, then hydrates the preload buffer in the background', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ listings: [makeListing(101)] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ listings: [makeListing(101), makeListing(102)] }),
+      } as Response);
 
     render(<ListingFlow />);
 
@@ -69,9 +136,20 @@ describe('ListingFlow', () => {
     expect(screen.getByRole('button', { name: 'Delete preferences' })).toHaveClass(
       'text-red-600',
     );
-    expect(screen.queryByRole('link', { name: 'Show me something else' })).toBeNull();
-    expect(mockFetch).toHaveBeenCalledWith('/api/listings/stack-rank?limit=4');
-    await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/101'));
+    expect(screen.queryByRole('link', { name: 'Show me something I will like' })).toBeNull();
+
+    // First paint fetches a single listing; the background hydration then fills
+    // the preload buffer (current + 5 ahead).
+    expect(mockFetch).toHaveBeenCalledWith('/api/listings/stack-rank?limit=1');
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith('/api/listings/stack-rank?limit=6'),
+    );
+    await waitFor(() => expect(lastHistoryUrl()).toBe('/listings/101'));
+    expect(historySpy).toHaveBeenLastCalledWith(
+      window.history.state,
+      '',
+      '/listings/101',
+    );
   });
 
   it('records Skip and advances to the next ranked listing', async () => {
@@ -99,7 +177,40 @@ describe('ListingFlow', () => {
       }),
     );
     expect(await screen.findByRole('heading', { name: 'Listing 202' })).toBeTruthy();
-    await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/202'));
+    await waitFor(() => expect(lastHistoryUrl()).toBe('/listings/202'));
+  });
+
+  it('starts the next listing at its first image after advancing from a later image', async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        listings: [makeListingWithImages(212, ['CCCC', 'DDDD'])],
+      }),
+    } as Response).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ listings: [] }),
+    } as Response);
+
+    render(<ListingFlow initialListing={makeListingWithImages(211, ['AAAA', 'BBBB'])} />);
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Go to image 2' }));
+    });
+    expect(screen.getByTestId('carousel-image')).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,BBBB',
+    );
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Skip' }));
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Listing 212' })).toBeTruthy();
+    expect(screen.getByTestId('carousel-image')).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,CCCC',
+    );
   });
 
   it('records Save and advances through the same listing action contract', async () => {
@@ -238,7 +349,7 @@ describe('ListingFlow', () => {
     expect(mockDeleteListingInteractions).toHaveBeenCalledWith(42);
     expect(mockCreateListingInteraction).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole('heading', { name: 'Listing 701' })).toBeTruthy();
-    await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/701'));
+    await waitFor(() => expect(lastHistoryUrl()).toBe('/listings/701'));
   });
 
   it('ignores stale continuation fetches when deleting preferences reloads the queue', async () => {
@@ -281,6 +392,6 @@ describe('ListingFlow', () => {
 
     expect(screen.queryByRole('heading', { name: 'Listing 803' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Listing 901' })).toBeTruthy();
-    await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/901'));
+    await waitFor(() => expect(lastHistoryUrl()).toBe('/listings/901'));
   });
 });

@@ -107,7 +107,7 @@ describe('ListingImageCarousel', () => {
     render(
       <section>
         <a href="/listings" onClick={navigateToListings}>
-          Show me something else
+          Show me something I will like
         </a>
         <ListingImageCarousel images={IMAGES} />
       </section>,
