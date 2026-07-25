@@ -5,7 +5,9 @@ import type {
   StackRankProfileWeights,
 } from '@/types/scroller-customer-interactions-db';
 
-export const LISTING_STACK_RANK_PRELOAD_COUNT = 3;
+// Keep this many listings hydrated ahead of the current one so browsing stays
+// instant despite each listing carrying its (image-heavy) detail payload.
+export const LISTING_STACK_RANK_PRELOAD_COUNT = 5;
 export const LISTING_STACK_RANK_QUEUE_LIMIT = LISTING_STACK_RANK_PRELOAD_COUNT + 1;
 
 export type ListingStackRankQueueStatus = 'ready' | 'empty' | 'error';

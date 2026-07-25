@@ -31,7 +31,7 @@ describe('appendUniqueListings', () => {
 });
 
 describe('createListingStackRankQueue', () => {
-  it('keeps the current listing plus the next three listings preloaded', () => {
+  it('keeps the current listing plus the next five listings preloaded', () => {
     const queue = createListingStackRankQueue({
       listings: [makeListing(1), makeListing(2), makeListing(3), makeListing(4), makeListing(5)],
       profile_weights: { 'bedrooms:3': 0.7 },
@@ -39,10 +39,10 @@ describe('createListingStackRankQueue', () => {
 
     expect(queue.status).toBe('ready');
     expect(queue.currentListing?.id).toBe(1);
-    expect(queue.preloadedListings.map((listing) => listing.id)).toEqual([2, 3, 4]);
+    expect(queue.preloadedListings.map((listing) => listing.id)).toEqual([2, 3, 4, 5]);
     expect(queue.listings.map((listing) => listing.id)).toEqual([1, 2, 3, 4, 5]);
     expect(queue.profileWeights).toEqual({ 'bedrooms:3': 0.7 });
-    expect(LISTING_STACK_RANK_QUEUE_LIMIT).toBe(4);
+    expect(LISTING_STACK_RANK_QUEUE_LIMIT).toBe(6);
   });
 
   it('represents an empty response without a current listing id', () => {
@@ -72,7 +72,7 @@ describe('mergeListingStackRankQueue', () => {
 
     expect(mergedQueue.currentListing?.id).toBe(10);
     expect(mergedQueue.listings.map((listing) => listing.id)).toEqual([10, 11, 12, 13, 14]);
-    expect(mergedQueue.preloadedListings.map((listing) => listing.id)).toEqual([11, 12, 13]);
+    expect(mergedQueue.preloadedListings.map((listing) => listing.id)).toEqual([11, 12, 13, 14]);
     expect(mergedQueue.profileWeights).toEqual({ 'price:500000': 0.5 });
   });
 });
@@ -111,7 +111,7 @@ describe('fetchListingStackRankQueue', () => {
 
     const queue = await fetchListingStackRankQueue();
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/listings/stack-rank?limit=4');
+    expect(mockFetch).toHaveBeenCalledWith('/api/listings/stack-rank?limit=6');
     expect(queue.currentListing?.id).toBe(30);
   });
 
