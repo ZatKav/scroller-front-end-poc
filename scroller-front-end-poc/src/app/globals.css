@@ -6,7 +6,10 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
-    --font-sans: "Inter", sans-serif;
+    /* System font stack: prefers locally-installed Inter, otherwise falls back
+       to the native system UI font. Avoids a build/runtime Google Fonts fetch. */
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
