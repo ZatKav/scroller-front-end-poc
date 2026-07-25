@@ -297,6 +297,110 @@ describe('ListingImageCarousel', () => {
     );
   });
 
+  describe('with more images than the dot cap', () => {
+    // 12 renderable images: above the 7-dot cap, so the row becomes a sliding
+    // window of 7 dots flanked by previous/next arrows.
+    const MANY_IMAGES: CarouselImage[] = Array.from({ length: 12 }, (_, index) => ({
+      image_data: `IMG${index}`,
+      alt: `Image ${index + 1}`,
+    }));
+
+    function visibleDotIndexes(): number[] {
+      return Array.from(screen.getByTestId('carousel-dots').children).map((dot) =>
+        Number(dot.getAttribute('data-testid')!.replace('carousel-dot-', '')),
+      );
+    }
+
+    it('caps the dots at seven and adds previous/next arrows', () => {
+      render(<ListingImageCarousel images={MANY_IMAGES} />);
+
+      expect(screen.getByTestId('carousel-dots').children).toHaveLength(7);
+      expect(screen.getByTestId('carousel-dots-previous')).toBeInTheDocument();
+      expect(screen.getByTestId('carousel-dots-next')).toBeInTheDocument();
+      expect(screen.getByTestId('carousel-status')).toHaveTextContent('Image 1 of 12');
+    });
+
+    it('shows no arrows when the images fit inside the cap', () => {
+      render(<ListingImageCarousel images={MANY_IMAGES.slice(0, 7)} />);
+
+      expect(screen.getByTestId('carousel-dots').children).toHaveLength(7);
+      expect(screen.queryByTestId('carousel-dots-previous')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('carousel-dots-next')).not.toBeInTheDocument();
+    });
+
+    it('slides the dot window to keep the active image centred', () => {
+      render(<ListingImageCarousel images={MANY_IMAGES} />);
+
+      // At the start the window is pinned to the front of the list.
+      expect(visibleDotIndexes()).toEqual([0, 1, 2, 3, 4, 5, 6]);
+
+      act(() => {
+        fireEvent.keyDown(screen.getByTestId('carousel-viewport'), { key: 'ArrowRight' });
+      });
+      act(() => {
+        fireEvent.keyDown(screen.getByTestId('carousel-viewport'), { key: 'ArrowRight' });
+      });
+      act(() => {
+        fireEvent.keyDown(screen.getByTestId('carousel-viewport'), { key: 'ArrowRight' });
+      });
+      act(() => {
+        fireEvent.keyDown(screen.getByTestId('carousel-viewport'), { key: 'ArrowRight' });
+      });
+
+      // Image 5 (index 4) is now centred in the window.
+      expect(visibleDotIndexes()).toEqual([1, 2, 3, 4, 5, 6, 7]);
+      expect(screen.getByTestId('carousel-dot-4')).toHaveAttribute('aria-current', 'true');
+    });
+
+    it('pins the window to the end of the list on the last image', async () => {
+      const user = userEvent.setup();
+      render(<ListingImageCarousel images={MANY_IMAGES} />);
+
+      // Walk to the last image via the next arrow.
+      for (let step = 0; step < MANY_IMAGES.length - 1; step += 1) {
+        await act(async () => {
+          await user.click(screen.getByTestId('carousel-dots-next'));
+        });
+      }
+
+      expect(screen.getByTestId('carousel-status')).toHaveTextContent('Image 12 of 12');
+      expect(visibleDotIndexes()).toEqual([5, 6, 7, 8, 9, 10, 11]);
+    });
+
+    it('disables each arrow at its end of the list', async () => {
+      const user = userEvent.setup();
+      render(<ListingImageCarousel images={MANY_IMAGES} />);
+
+      expect(screen.getByTestId('carousel-dots-previous')).toBeDisabled();
+      expect(screen.getByTestId('carousel-dots-next')).toBeEnabled();
+
+      await act(async () => {
+        await user.click(screen.getByTestId('carousel-dots-next'));
+      });
+
+      expect(screen.getByTestId('carousel-dots-previous')).toBeEnabled();
+      expect(screen.getByTestId('carousel-status')).toHaveTextContent('Image 2 of 12');
+    });
+
+    it('steps back one image with the previous arrow', async () => {
+      const user = userEvent.setup();
+      render(<ListingImageCarousel images={MANY_IMAGES} />);
+
+      await act(async () => {
+        await user.click(screen.getByTestId('carousel-dots-next'));
+      });
+      await act(async () => {
+        await user.click(screen.getByTestId('carousel-dots-previous'));
+      });
+
+      expect(screen.getByTestId('carousel-status')).toHaveTextContent('Image 1 of 12');
+      expect(screen.getByTestId('carousel-image')).toHaveAttribute(
+        'src',
+        'data:image/jpeg;base64,IMG0',
+      );
+    });
+  });
+
   it('keeps a stable aspect-ratio viewport with object-contain', () => {
     render(<ListingImageCarousel images={IMAGES} />);
 

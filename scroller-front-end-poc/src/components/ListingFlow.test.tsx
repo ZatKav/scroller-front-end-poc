@@ -132,7 +132,10 @@ describe('ListingFlow', () => {
     expect(screen.getByRole('button', { name: 'Maybe' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Delete preferences' })).toBeTruthy();
+    // Red marks it as a debug-only control rather than a normal user action.
+    expect(screen.getByRole('button', { name: 'Delete preferences' })).toHaveClass(
+      'text-red-600',
+    );
     expect(screen.queryByRole('link', { name: 'Show me something I will like' })).toBeNull();
 
     // First paint fetches a single listing; the background hydration then fills

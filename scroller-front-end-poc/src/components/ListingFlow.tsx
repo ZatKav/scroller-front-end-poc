@@ -358,11 +358,15 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
         </p>
       )}
 
+      {/* Debug-only affordance: deleting preferences wipes the customer's whole
+          interaction history and is not something a real user should reach for,
+          so it is rendered in red to read as a developer control rather than a
+          normal action. */}
       <button
         type="button"
         onClick={deleteListingPreferences}
         disabled={submitting || resettingPreferences}
-        className="mx-auto text-sm font-bold text-zelli-muted underline-offset-4 hover:text-zelli-ink hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+        className="mx-auto text-sm font-bold text-red-600 underline-offset-4 hover:text-red-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
       >
         {resettingPreferences ? 'Deleting preferences...' : 'Delete preferences'}
       </button>
