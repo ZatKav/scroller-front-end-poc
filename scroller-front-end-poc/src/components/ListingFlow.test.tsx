@@ -73,10 +73,46 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  jest.useRealTimers();
   historySpy.mockRestore();
 });
 
 describe('ListingFlow', () => {
+  it('defers URL sync and preserves the router history state', () => {
+    jest.useFakeTimers();
+    const routerState = { __NA: true, tree: ['listings'] };
+    window.history.replaceState(routerState, '', '/listings');
+    historySpy.mockClear();
+    mockFetch.mockImplementation(() => new Promise<Response>(() => {}));
+
+    const { unmount } = render(<ListingFlow initialListing={makeListing(100)} />);
+
+    expect(historySpy).not.toHaveBeenCalled();
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+
+    expect(historySpy).toHaveBeenCalledWith(routerState, '', '/listings/100');
+    unmount();
+  });
+
+  it('cancels a pending URL sync when unmounted', () => {
+    jest.useFakeTimers();
+    mockFetch.mockImplementation(() => new Promise<Response>(() => {}));
+
+    const { unmount } = render(<ListingFlow initialListing={makeListing(100)} />);
+
+    expect(historySpy).not.toHaveBeenCalled();
+    unmount();
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+
+    expect(historySpy).not.toHaveBeenCalled();
+  });
+
   it('loads the first listing fast, then hydrates the preload buffer in the background', async () => {
     mockFetch
       .mockResolvedValueOnce({
@@ -106,7 +142,11 @@ describe('ListingFlow', () => {
       expect(mockFetch).toHaveBeenCalledWith('/api/listings/stack-rank?limit=6'),
     );
     await waitFor(() => expect(lastHistoryUrl()).toBe('/listings/101'));
-    expect(historySpy).toHaveBeenLastCalledWith(null, '', '/listings/101');
+    expect(historySpy).toHaveBeenLastCalledWith(
+      window.history.state,
+      '',
+      '/listings/101',
+    );
   });
 
   it('records Skip and advances to the next ranked listing', async () => {

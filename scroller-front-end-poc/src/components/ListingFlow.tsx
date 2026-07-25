@@ -69,13 +69,20 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
     // skeleton) on every advance. history.replaceState keeps the persistent
     // client queue — and its prefetch — intact so advancing is instant, while a
     // refresh/deep-link still resolves the /listings/[id] route server-side.
-    if (currentListing && typeof window !== 'undefined') {
+    if (!currentListing || typeof window === 'undefined') {
+      return;
+    }
+
+    // Defer until parent effects have installed Next's history wrapper.
+    const timeoutId = window.setTimeout(() => {
       window.history.replaceState(
-        null,
+        window.history.state,
         '',
         appPath(`/listings/${currentListing.id}`),
       );
-    }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [currentListing]);
 
   async function loadMoreListings(limit: number, initial = false) {
