@@ -36,7 +36,7 @@ test('opens listing discovery from the detail page entry point', async ({ page }
   const { id } = await ensureSeededDetailListing();
 
   await page.goto(`/listing/${id}`);
-  await page.getByRole('link', { name: 'Show me something else' }).click();
+  await page.getByRole('link', { name: 'Show me something I will like' }).click();
 
   await expect(page).toHaveURL(/\/listings(?:\/\d+)?$/);
 });

@@ -133,7 +133,7 @@ describe('ListingFlow', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Delete preferences' })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: 'Show me something else' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Show me something I will like' })).toBeNull();
 
     // First paint fetches a single listing; the background hydration then fills
     // the preload buffer (current + 5 ahead).

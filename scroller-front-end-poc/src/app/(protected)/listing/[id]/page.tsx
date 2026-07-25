@@ -44,7 +44,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
           href="/listings"
           className="text-sm font-bold text-zelli-muted underline-offset-4 hover:text-zelli-ink hover:underline"
         >
-          Show me something else
+          Show me something I will like
         </Link>
       </div>
     );
