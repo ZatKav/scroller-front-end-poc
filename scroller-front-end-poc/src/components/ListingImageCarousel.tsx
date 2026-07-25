@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Horizontal swipe gesture tuning, reused from ImageScroller (PRO-236): a swipe
 // only counts when it travels at least SWIPE_MIN_DISTANCE_PX horizontally AND its
@@ -10,6 +11,22 @@ import { useEffect, useRef, useState } from 'react';
 // recording a Like/Skip: swipe left advances, swipe right goes back (PRO-254).
 const SWIPE_MIN_DISTANCE_PX = 60;
 const SWIPE_HORIZONTAL_RATIO = 1.5;
+
+// Listings can carry dozens of images, and one dot each overflows the row on a
+// phone. Above MAX_VISIBLE_DOTS the row becomes a sliding window of that many
+// dots flanked by previous/next arrows — at most 9 controls under the image.
+const MAX_VISIBLE_DOTS = 7;
+
+// First index of the dot window: keeps the active dot centred, clamped so the
+// window never runs off either end of the list (so the first and last images
+// still show a full window).
+function dotWindowStart(activeIndex: number, total: number): number {
+  if (total <= MAX_VISIBLE_DOTS) {
+    return 0;
+  }
+  const centred = activeIndex - Math.floor(MAX_VISIBLE_DOTS / 2);
+  return Math.max(0, Math.min(centred, total - MAX_VISIBLE_DOTS));
+}
 
 // A single image in the carousel. Deliberately minimal and local so this
 // component does not depend on the enrichment-db client/types (FE-2); the detail
@@ -60,6 +77,11 @@ export default function ListingImageCarousel({ images }: ListingImageCarouselPro
   const activeIndex = Math.min(currentIndex, renderable.length - 1);
   const currentImage = renderable[activeIndex];
   const hasMultiple = renderable.length > 1;
+  const showDotArrows = renderable.length > MAX_VISIBLE_DOTS;
+  const windowStart = dotWindowStart(activeIndex, renderable.length);
+  const visibleDotIndexes = renderable
+    .slice(windowStart, windowStart + MAX_VISIBLE_DOTS)
+    .map((_, offset) => windowStart + offset);
 
   function goToIndex(index: number) {
     setCurrentIndex(Math.max(0, Math.min(index, renderable.length - 1)));
@@ -161,28 +183,56 @@ export default function ListingImageCarousel({ images }: ListingImageCarouselPro
         Image {activeIndex + 1} of {renderable.length}
       </p>
       {/* Paging dots: real, labelled, focusable controls. Hidden when there is
-          nothing to page between (PRO-254). */}
+          nothing to page between (PRO-254). Past MAX_VISIBLE_DOTS images the row
+          is a sliding window flanked by previous/next arrows, which step one
+          image at a time and are disabled at the ends of the list. */}
       {hasMultiple && (
-        <div
-          data-testid="carousel-dots"
-          className="flex items-center justify-center gap-2"
-        >
-          {renderable.map((_, index) => {
-            const isCurrent = index === activeIndex;
-            return (
-              <button
-                key={index}
-                type="button"
-                data-testid={`carousel-dot-${index}`}
-                aria-label={`Go to image ${index + 1}`}
-                aria-current={isCurrent ? 'true' : undefined}
-                onClick={() => goToIndex(index)}
-                className={`h-2.5 w-2.5 rounded-full transition-colors focus:outline focus:outline-2 focus:outline-blue-500 ${
-                  isCurrent ? 'bg-gray-800' : 'bg-gray-300 hover:bg-gray-400'
-                }`}
-              />
-            );
-          })}
+        <div className="flex items-center justify-center gap-2">
+          {showDotArrows && (
+            <button
+              type="button"
+              data-testid="carousel-dots-previous"
+              aria-label="Previous image"
+              onClick={goPrevious}
+              disabled={activeIndex === 0}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-800 focus:outline focus:outline-2 focus:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+          <div
+            data-testid="carousel-dots"
+            className="flex items-center justify-center gap-2"
+          >
+            {visibleDotIndexes.map((index) => {
+              const isCurrent = index === activeIndex;
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  data-testid={`carousel-dot-${index}`}
+                  aria-label={`Go to image ${index + 1}`}
+                  aria-current={isCurrent ? 'true' : undefined}
+                  onClick={() => goToIndex(index)}
+                  className={`h-2.5 w-2.5 rounded-full transition-colors focus:outline focus:outline-2 focus:outline-blue-500 ${
+                    isCurrent ? 'bg-gray-800' : 'bg-gray-300 hover:bg-gray-400'
+                  }`}
+                />
+              );
+            })}
+          </div>
+          {showDotArrows && (
+            <button
+              type="button"
+              data-testid="carousel-dots-next"
+              aria-label="Next image"
+              onClick={goNext}
+              disabled={activeIndex === renderable.length - 1}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-800 focus:outline focus:outline-2 focus:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
       )}
     </div>

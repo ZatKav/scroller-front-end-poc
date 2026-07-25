@@ -65,7 +65,10 @@ describe('ListingFlow', () => {
     expect(screen.getByRole('button', { name: 'Maybe' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Delete preferences' })).toBeTruthy();
+    // Red marks it as a debug-only control rather than a normal user action.
+    expect(screen.getByRole('button', { name: 'Delete preferences' })).toHaveClass(
+      'text-red-600',
+    );
     expect(screen.queryByRole('link', { name: 'Show me something else' })).toBeNull();
     expect(mockFetch).toHaveBeenCalledWith('/api/listings/stack-rank?limit=4');
     await waitFor(() => expect(mockReplace).toHaveBeenLastCalledWith('/listings/101'));
