@@ -39,7 +39,11 @@ describe('fetchStackRankImages', () => {
       json: () => Promise.resolve({ images: mockImages, profile_weights: {} }),
     } as Response);
 
-    const result = await fetchStackRankImages({ customerId: 42, limit: 3 });
+    const result = await fetchStackRankImages({
+      customerId: 42,
+      customerCredential: 'customer-token',
+      limit: 3,
+    });
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://interactions.local/api/images/stack-rank?limit=3&customer_id=42',
@@ -47,6 +51,7 @@ describe('fetchStackRankImages', () => {
         headers: {
           'Content-Type': 'application/json',
           Authorization: 'Bearer test-api-key',
+          'X-Scroller-Customer-Authorization': 'Bearer customer-token',
         },
         cache: 'no-store',
       },
@@ -54,22 +59,6 @@ describe('fetchStackRankImages', () => {
     expect(result).toEqual(mockImages);
   });
 
-  it('falls back to legacy skip/limit windows when no customer id is provided', async () => {
-    const mockImages = [
-      { id: 7, image_data: 'data:image/png;base64,GGG=', image_summary: 'G property' },
-    ];
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ images: mockImages, profile_weights: {} }),
-    } as Response);
-
-    await fetchStackRankImages({ skip: 4, limit: 2 });
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://interactions.local/api/images/stack-rank?limit=2&skip=4',
-      expect.any(Object),
-    );
-  });
 });
 
 describe('fetchStackRank', () => {
@@ -89,7 +78,7 @@ describe('fetchStackRank', () => {
       json: () => Promise.resolve({ images: mockImages, profile_weights: mockWeights }),
     } as Response);
 
-    const result = await fetchStackRank({ customerId: 42, limit: 3 });
+    const result = await fetchStackRank({ customerId: 42, customerCredential: 'token', limit: 3 });
 
     expect(result).toEqual({ images: mockImages, profile_weights: mockWeights });
   });
@@ -100,7 +89,7 @@ describe('fetchStackRank', () => {
       json: () => Promise.resolve({}),
     } as Response);
 
-    const result = await fetchStackRank({ customerId: 42 });
+    const result = await fetchStackRank({ customerId: 42, customerCredential: 'token' });
 
     expect(result).toEqual({ images: [], profile_weights: {} });
   });
@@ -115,7 +104,7 @@ describe('fetchStackRank', () => {
       json: () => Promise.resolve(mockImages),
     } as Response);
 
-    const result = await fetchStackRank({ customerId: 42, limit: 3 });
+    const result = await fetchStackRank({ customerId: 42, customerCredential: 'token', limit: 3 });
 
     expect(result).toEqual({ images: mockImages, profile_weights: {} });
   });
@@ -130,7 +119,11 @@ describe('fetchListingStackRank', () => {
       json: () => Promise.resolve({ listings: mockListings, profile_weights: mockWeights }),
     } as Response);
 
-    const result = await fetchListingStackRank({ customerId: 42, limit: 4 });
+    const result = await fetchListingStackRank({
+      customerId: 42,
+      customerCredential: 'customer-token',
+      limit: 4,
+    });
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://interactions.local/api/listings/stack-rank?limit=4&customer_id=42',
@@ -138,25 +131,12 @@ describe('fetchListingStackRank', () => {
         headers: {
           'Content-Type': 'application/json',
           Authorization: 'Bearer test-api-key',
+          'X-Scroller-Customer-Authorization': 'Bearer customer-token',
         },
         cache: 'no-store',
       },
     );
     expect(result).toEqual({ listings: mockListings, profile_weights: mockWeights });
-  });
-
-  it('falls back to legacy skip/limit windows when no customer id is provided', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ listings: [], profile_weights: {} }),
-    } as Response);
-
-    await fetchListingStackRank({ skip: 8, limit: 2 });
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://interactions.local/api/listings/stack-rank?limit=2&skip=8',
-      expect.any(Object),
-    );
   });
 
   it('defaults to an empty listing response when the upstream omits fields', async () => {
@@ -165,7 +145,7 @@ describe('fetchListingStackRank', () => {
       json: () => Promise.resolve({}),
     } as Response);
 
-    await expect(fetchListingStackRank({ customerId: 42 })).resolves.toEqual({
+    await expect(fetchListingStackRank({ customerId: 42, customerCredential: 'token' })).resolves.toEqual({
       listings: [],
       profile_weights: {},
     });

@@ -4,6 +4,7 @@
 import { NextRequest } from 'next/server';
 
 jest.mock('@/lib/auth', () => ({
+  generateCustomerCredential: jest.fn(() => 'customer-credential'),
   verifyToken: jest.fn(),
 }));
 
@@ -81,7 +82,11 @@ describe('GET /api/stack-rank', () => {
         images: [{ id: 1, image_data: 'data:image/png;base64,AAA=', image_summary: 'A property' }],
         profile_weights: mockWeights,
       });
-      expect(mockFetchStackRank).toHaveBeenCalledWith({ customerId: MOCK_USER.id, limit: 10 });
+      expect(mockFetchStackRank).toHaveBeenCalledWith({
+        customerId: MOCK_USER.id,
+        customerCredential: 'customer-credential',
+        limit: 10,
+      });
     });
 
     it('uses requested limit and ignores legacy skip windows', async () => {
@@ -91,7 +96,11 @@ describe('GET /api/stack-rank', () => {
       const response = await GET(makeRequest('valid-token', '?skip=100&limit=3'));
 
       expect(response.status).toBe(200);
-      expect(mockFetchStackRank).toHaveBeenCalledWith({ customerId: MOCK_USER.id, limit: 3 });
+      expect(mockFetchStackRank).toHaveBeenCalledWith({
+        customerId: MOCK_USER.id,
+        customerCredential: 'customer-credential',
+        limit: 3,
+      });
     });
 
     it('normalizes non-integer or out-of-range limits', async () => {
@@ -102,9 +111,15 @@ describe('GET /api/stack-rank', () => {
       await GET(makeRequest('valid-token', '?limit=2.9'));
       await GET(makeRequest('valid-token', '?limit=not-a-number'));
 
-      expect(mockFetchStackRank).toHaveBeenNthCalledWith(1, { customerId: MOCK_USER.id, limit: 1 });
-      expect(mockFetchStackRank).toHaveBeenNthCalledWith(2, { customerId: MOCK_USER.id, limit: 2 });
-      expect(mockFetchStackRank).toHaveBeenNthCalledWith(3, { customerId: MOCK_USER.id, limit: 10 });
+      expect(mockFetchStackRank).toHaveBeenNthCalledWith(1, {
+        customerId: MOCK_USER.id, customerCredential: 'customer-credential', limit: 1,
+      });
+      expect(mockFetchStackRank).toHaveBeenNthCalledWith(2, {
+        customerId: MOCK_USER.id, customerCredential: 'customer-credential', limit: 2,
+      });
+      expect(mockFetchStackRank).toHaveBeenNthCalledWith(3, {
+        customerId: MOCK_USER.id, customerCredential: 'customer-credential', limit: 10,
+      });
     });
   });
 

@@ -231,40 +231,6 @@ describe('scrollerCustomerInteractionsDbApiClient', () => {
     });
   });
 
-  describe('getStackRankImages', () => {
-    it('fetches stack-rank image cards', async () => {
-      const mockResponse = [
-        { id: 1, listing_id: 2001, image_data: 'data:image/png;base64,AAA=', image_summary: 'Summary' },
-      ];
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      } as Response);
-
-      const result = await scrollerCustomerInteractionsDbApiClient.getStackRankImages();
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/scroller-customer-interactions-db?path=%2Fimages%2Fstack-rank%3Fskip%3D0%26limit%3D10',
-        expect.any(Object),
-      );
-      expect(result).toEqual(mockResponse);
-    });
-
-    it('fetches requested stack-rank windows', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve([]),
-      } as Response);
-
-      await scrollerCustomerInteractionsDbApiClient.getStackRankImages(1, 3);
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/scroller-customer-interactions-db?path=%2Fimages%2Fstack-rank%3Fskip%3D1%26limit%3D3',
-        expect.any(Object),
-      );
-    });
-  });
-
   describe('under a deployed base path', () => {
     const ORIGINAL_BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH;
 
@@ -290,9 +256,9 @@ describe('scrollerCustomerInteractionsDbApiClient', () => {
         json: () => Promise.resolve([]),
       } as Response);
 
-      await scopedClient.getStackRankImages();
+      await scopedClient.getCustomerImageInteractions(100);
       expect(mockFetch).toHaveBeenLastCalledWith(
-        '/scroller/api/scroller-customer-interactions-db?path=%2Fimages%2Fstack-rank%3Fskip%3D0%26limit%3D10',
+        '/scroller/api/scroller-customer-interactions-db?path=%2Fcustomer-image-interactions%2F100%3Fskip%3D0%26limit%3D100',
         expect.any(Object),
       );
 
@@ -318,7 +284,7 @@ describe('scrollerCustomerInteractionsDbApiClient', () => {
 
       let error: unknown;
       try {
-        await scrollerCustomerInteractionsDbApiClient.getStackRankImages();
+        await scrollerCustomerInteractionsDbApiClient.getCustomerImageInteractions(100);
       } catch (caughtError) {
         error = caughtError;
       }
@@ -334,7 +300,7 @@ describe('scrollerCustomerInteractionsDbApiClient', () => {
 
       let error: unknown;
       try {
-        await scrollerCustomerInteractionsDbApiClient.getStackRankImages();
+        await scrollerCustomerInteractionsDbApiClient.getCustomerImageInteractions(100);
       } catch (caughtError) {
         error = caughtError;
       }

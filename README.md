@@ -39,6 +39,9 @@ Required backend proxy variables:
 - `SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL` (default `http://localhost:8400`)
 - `SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY` (must match `API_KEY` in `scroller-customer-interactions-db`)
 - `JWT_SECRET_KEY` (required for auth routes and login checks)
+- `SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET` (a separate random secret shared with `scroller-customer-interactions-db`)
+
+Use at least 32 random bytes. Local deployment reads the environment variable while Woodpecker deployment reads the `scroller_customer_credential_jwt_secret` secret and renders it into a temporary, deleted manifest.
 
 CI/deploy login checks also require:
 
@@ -59,6 +62,8 @@ The app now includes a dedicated TypeScript API client and server-side proxy rou
 - Types: `scroller-front-end-poc/src/types/scroller-customer-interactions-db.ts`
 
 The browser only calls internal Next.js API routes. API keys are injected server-side in the proxy handler.
+After validating the browser session, the frontend also mints a 60-second customer credential; the
+interactions service derives customer ownership from its signed subject rather than trusting request IDs.
 
 After login, the protected scroller page loads stack-rank images through the internal
 `/api/stack-rank` route in customer-aware continuation mode. It requests one image first so the initial

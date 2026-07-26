@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { generateCustomerCredential, verifyToken } from '@/lib/auth';
 import { fetchListingStackRank, StackRankClientError } from '@/lib/stack-rank-client';
 
 export const dynamic = 'force-dynamic';
@@ -40,6 +40,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
     const { listings, profile_weights } = await fetchListingStackRank({
       customerId: user.id,
+      customerCredential: generateCustomerCredential(user.id),
       limit,
     });
 

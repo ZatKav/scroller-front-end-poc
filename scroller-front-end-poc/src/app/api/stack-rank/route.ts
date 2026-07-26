@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { generateCustomerCredential, verifyToken } from '@/lib/auth';
 import { fetchStackRank, StackRankClientError } from '@/lib/stack-rank-client';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     const limit = readWindowNumber(request.nextUrl.searchParams, 'limit', 10, 1);
-    const { images, profile_weights } = await fetchStackRank({ customerId: user.id, limit });
+    const customerCredential = generateCustomerCredential(user.id);
+    const { images, profile_weights } = await fetchStackRank({
+      customerId: user.id,
+      customerCredential,
+      limit,
+    });
     const filteredImages = images.filter((img) => img.image_data !== null);
     return NextResponse.json({ ok: true, images: filteredImages, profile_weights });
   } catch (error) {

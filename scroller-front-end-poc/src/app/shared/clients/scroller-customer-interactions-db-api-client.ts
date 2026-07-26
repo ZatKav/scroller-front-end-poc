@@ -3,7 +3,6 @@ import {
   CustomerImageInteractionCreate,
   CustomerListingInteraction,
   CustomerListingInteractionCreate,
-  StackRankImage,
 } from '@/types/scroller-customer-interactions-db';
 import { appPath } from '@/lib/base-path';
 
@@ -149,14 +148,5 @@ export const scrollerCustomerInteractionsDbApiClient = {
     return request<{ deleted: number }>(`/customer-listing-interactions/${customerId}`, {
       method: 'DELETE',
     });
-  },
-
-  async getStackRankImages(skip: number = 0, limit: number = 10): Promise<StackRankImage[]> {
-    const queryParams = new URLSearchParams({
-      skip: String(skip),
-      limit: String(limit),
-    });
-
-    return request<StackRankImage[]>(`/images/stack-rank?${queryParams.toString()}`);
   },
 };

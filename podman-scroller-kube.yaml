@@ -20,6 +20,8 @@ spec:
           value: http://host.containers.internal:8400
         - name: SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY
           value: a9e08181c6f01244edc35813e387102bd9c889d014d10d27d940d62d7aaf827d
+        - name: SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET
+          value: __SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET__
         - name: ENRICHMENT_DB_BASE_URL
           value: http://enrichment-db:8200
         - name: ENRICHMENT_DB_API_KEY

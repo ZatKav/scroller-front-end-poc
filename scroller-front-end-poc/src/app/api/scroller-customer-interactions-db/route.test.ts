@@ -8,8 +8,10 @@ const API_KEY = 'test-api-key';
 const AUTH_COOKIE = 'auth-token=valid-token';
 
 const mockVerifyToken = jest.fn();
+const mockGenerateCustomerCredential = jest.fn(() => 'customer-credential');
 
 jest.mock('@/lib/auth', () => ({
+  generateCustomerCredential: (customerId: number) => mockGenerateCustomerCredential(customerId),
   verifyToken: (token: string) => mockVerifyToken(token),
 }));
 
@@ -25,6 +27,14 @@ function loadDelete() {
   let handler: typeof import('./route').DELETE;
   jest.isolateModules(() => {
     handler = require('./route').DELETE;
+  });
+  return handler!;
+}
+
+function loadGet() {
+  let handler: typeof import('./route').GET;
+  jest.isolateModules(() => {
+    handler = require('./route').GET;
   });
   return handler!;
 }
@@ -52,6 +62,7 @@ beforeEach(() => {
   jest.resetModules();
   mockFetch.mockReset();
   mockVerifyToken.mockReset();
+  mockGenerateCustomerCredential.mockClear();
   mockVerifyToken.mockReturnValue({
     id: 100,
     username: 'customer',
@@ -76,7 +87,10 @@ describe('DELETE /api/scroller-customer-interactions-db', () => {
       `${BASE_URL}/api/customer-image-interactions/100`,
       expect.objectContaining({
         method: 'DELETE',
-        headers: expect.objectContaining({ Authorization: `Bearer ${API_KEY}` }),
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${API_KEY}`,
+          'X-Scroller-Customer-Authorization': 'Bearer customer-credential',
+        }),
       }),
     );
     expect(response.status).toBe(200);
@@ -148,7 +162,10 @@ describe('POST /api/scroller-customer-interactions-db', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(payload),
-        headers: expect.objectContaining({ Authorization: `Bearer ${API_KEY}` }),
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${API_KEY}`,
+          'X-Scroller-Customer-Authorization': 'Bearer customer-credential',
+        }),
       }),
     );
     expect(response.status).toBe(200);
@@ -160,6 +177,31 @@ describe('POST /api/scroller-customer-interactions-db', () => {
     const response = await loadPost()(makePostRequest('/customer-listing-interactions', payload));
 
     expect(response.status).toBe(403);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/scroller-customer-interactions-db', () => {
+  it('rejects unknown upstream paths even for an authenticated customer', async () => {
+    const request = new NextRequest(
+      'http://localhost:8410/api/scroller-customer-interactions-db?path=%2Fimages%2Fstack-rank%3Fcustomer_id%3D100',
+      { headers: { Cookie: AUTH_COOKIE } },
+    );
+
+    const response = await loadGet()(request);
+
+    expect(response.status).toBe(400);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects every request without an authenticated session', async () => {
+    const request = new NextRequest(
+      'http://localhost:8410/api/scroller-customer-interactions-db?path=%2Fcustomer-image-interactions%2F100',
+    );
+
+    const response = await loadGet()(request);
+
+    expect(response.status).toBe(401);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 });

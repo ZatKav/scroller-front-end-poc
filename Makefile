@@ -158,16 +158,20 @@ podman-push: ## Tag and push the scroller image to the local registry
 .PHONY: podman-deploy
 podman-deploy: ## Canonical deploy: pull registry image, redeploy pod, and verify health
 	@tmp_reg_conf="$$(mktemp)"; \
-	trap 'rm -f "$$tmp_reg_conf"' EXIT; \
+	rendered_manifest="$$(mktemp)"; \
+	trap 'rm -f "$$tmp_reg_conf" "$$rendered_manifest"' EXIT; \
+	test -n "$$SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET" || { echo "SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET is required"; exit 1; }; \
+	escaped_secret="$$(printf '%s' "$$SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET" | sed 's/[\\&|]/\\&/g')"; \
+	sed "s|__SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET__|$$escaped_secret|g" "$(PODMAN_KUBE_MANIFEST)" > "$$rendered_manifest"; \
 	printf '%s\n' 'unqualified-search-registries = ["docker.io"]' '[[registry]]' 'location = "host.containers.internal:5000"' 'insecure = true' > "$$tmp_reg_conf"; \
 	echo "Pulling published image: $(REGISTRY_IMAGE)"; \
 	CONTAINERS_REGISTRIES_CONF="$$tmp_reg_conf" podman pull --tls-verify=false $(REGISTRY_IMAGE); \
 	echo "Stopping existing pod (if any)..."; \
-	CONTAINERS_REGISTRIES_CONF="$$tmp_reg_conf" podman play kube --down $(PODMAN_KUBE_MANIFEST) 2>/dev/null || true; \
+	CONTAINERS_REGISTRIES_CONF="$$tmp_reg_conf" podman play kube --down "$$rendered_manifest" 2>/dev/null || true; \
 	echo "Removing legacy standalone container $(PODMAN_CONT) if present..."; \
 	podman rm -f $(PODMAN_CONT) >/dev/null 2>&1 || true; \
 	echo "Deploying from $(PODMAN_KUBE_MANIFEST)..."; \
-	CONTAINERS_REGISTRIES_CONF="$$tmp_reg_conf" podman play kube --tls-verify=false $(PODMAN_KUBE_MANIFEST)
+	CONTAINERS_REGISTRIES_CONF="$$tmp_reg_conf" podman play kube --tls-verify=false "$$rendered_manifest"
 	@echo "Waiting for health endpoint: $(PODMAN_HEALTHCHECK_URL)"
 	@attempts=45; \
 	until curl -fsS "$(PODMAN_HEALTHCHECK_URL)" > /dev/null; do \

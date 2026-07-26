@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import users from '../../data/users.json';
 
 export const AUTH_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+export const CUSTOMER_CREDENTIAL_MAX_AGE_SECONDS = 60;
 
 export interface User {
   id: number;
@@ -26,6 +27,18 @@ function getJwtSecret(): string {
 
   if (!secret) {
     throw new Error('JWT_SECRET_KEY must be set before using authentication routes.');
+  }
+
+  return secret;
+}
+
+function getCustomerCredentialSecret(): string {
+  const secret = process.env.SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET;
+
+  if (!secret || Buffer.byteLength(secret, 'utf8') < 32) {
+    throw new Error(
+      'SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET must contain at least 32 bytes.',
+    );
   }
 
   return secret;
@@ -78,6 +91,24 @@ export function verifyToken(token: string): User | null {
   } catch {
     return null;
   }
+}
+
+export function generateCustomerCredential(customerId: number): string {
+  if (!Number.isInteger(customerId) || customerId < 1) {
+    throw new Error('A positive customer ID is required.');
+  }
+
+  return jwt.sign(
+    { purpose: 'customer-api' },
+    getCustomerCredentialSecret(),
+    {
+      algorithm: 'HS256',
+      audience: 'scroller-customer-interactions-db',
+      issuer: 'scroller-front-end-poc',
+      subject: String(customerId),
+      expiresIn: CUSTOMER_CREDENTIAL_MAX_AGE_SECONDS,
+    },
+  );
 }
 
 export async function authenticateUser(username: string, password: string): Promise<AuthenticatedUser | null> {

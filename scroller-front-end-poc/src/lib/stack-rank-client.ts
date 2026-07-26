@@ -6,8 +6,8 @@ import type {
 } from '@/types/scroller-customer-interactions-db';
 
 export interface StackRankWindowOptions {
-  customerId?: number;
-  skip?: number;
+  customerId: number;
+  customerCredential: string;
   limit?: number;
 }
 
@@ -23,23 +23,22 @@ export class StackRankClientError extends Error {
 
 export async function fetchStackRank({
   customerId,
-  skip = 0,
+  customerCredential,
   limit = 10,
-}: StackRankWindowOptions = {}): Promise<StackRankResponse> {
+}: StackRankWindowOptions): Promise<StackRankResponse> {
   const baseUrl =
     process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL ?? 'http://localhost:8400';
   const apiKey = process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY;
-  const query = new URLSearchParams({ limit: String(limit) });
-  if (customerId !== undefined) {
-    query.set('customer_id', String(customerId));
-  } else {
-    query.set('skip', String(skip));
-  }
+  const query = new URLSearchParams({
+    limit: String(limit),
+    customer_id: String(customerId),
+  });
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) {
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
+  headers['X-Scroller-Customer-Authorization'] = `Bearer ${customerCredential}`;
 
   let response: Response;
   try {
@@ -80,30 +79,29 @@ export async function fetchStackRank({
 }
 
 export async function fetchStackRankImages(
-  options: StackRankWindowOptions = {},
+  options: StackRankWindowOptions,
 ): Promise<StackRankImage[]> {
   return (await fetchStackRank(options)).images;
 }
 
 export async function fetchListingStackRank({
   customerId,
-  skip = 0,
+  customerCredential,
   limit = 4,
-}: StackRankWindowOptions = {}): Promise<ListingStackRankResponse> {
+}: StackRankWindowOptions): Promise<ListingStackRankResponse> {
   const baseUrl =
     process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL ?? 'http://localhost:8400';
   const apiKey = process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY;
-  const query = new URLSearchParams({ limit: String(limit) });
-  if (customerId !== undefined) {
-    query.set('customer_id', String(customerId));
-  } else {
-    query.set('skip', String(skip));
-  }
+  const query = new URLSearchParams({
+    limit: String(limit),
+    customer_id: String(customerId),
+  });
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) {
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
+  headers['X-Scroller-Customer-Authorization'] = `Bearer ${customerCredential}`;
 
   let response: Response;
   try {

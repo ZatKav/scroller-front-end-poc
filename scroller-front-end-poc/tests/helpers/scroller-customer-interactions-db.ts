@@ -1,3 +1,5 @@
+import jwt from 'jsonwebtoken';
+
 export interface CustomerImageInteractionRecord {
   id: number;
   customer_id: number;
@@ -15,9 +17,10 @@ interface WaitForNewInteractionParams {
   pollIntervalMs?: number;
 }
 
-function getInteractionsDbConfig(): { baseUrl: string; apiKey: string } {
+function getInteractionsDbConfig(): { baseUrl: string; apiKey: string; customerSecret: string } {
   const baseUrl = process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL;
   const apiKey = process.env.SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY;
+  const customerSecret = process.env.SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET;
 
   if (!baseUrl) {
     throw new Error('SCROLLER_CUSTOMER_INTERACTIONS_DB_BASE_URL must be set for Playwright DB verification.');
@@ -27,20 +30,40 @@ function getInteractionsDbConfig(): { baseUrl: string; apiKey: string } {
     throw new Error('SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY must be set for Playwright DB verification.');
   }
 
-  return { baseUrl, apiKey };
+  if (!customerSecret) {
+    throw new Error('SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET must be set for Playwright DB verification.');
+  }
+
+  return { baseUrl, apiKey, customerSecret };
+}
+
+function getCustomerHeaders(apiKey: string, customerSecret: string, customerId: number) {
+  const credential = jwt.sign(
+    { purpose: 'customer-api' },
+    customerSecret,
+    {
+      algorithm: 'HS256',
+      audience: 'scroller-customer-interactions-db',
+      issuer: 'scroller-front-end-poc',
+      subject: String(customerId),
+      expiresIn: 60,
+    },
+  );
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    'X-Scroller-Customer-Authorization': `Bearer ${credential}`,
+    'Content-Type': 'application/json',
+  };
 }
 
 export async function getCustomerImageInteractions(
   customerId: number,
 ): Promise<CustomerImageInteractionRecord[]> {
-  const { baseUrl, apiKey } = getInteractionsDbConfig();
+  const { baseUrl, apiKey, customerSecret } = getInteractionsDbConfig();
   const url = `${baseUrl.replace(/\/$/, '')}/api/customer-image-interactions/${customerId}?skip=0&limit=100`;
   const response = await fetch(url, {
     method: 'GET',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: getCustomerHeaders(apiKey, customerSecret, customerId),
   });
 
   if (!response.ok) {
@@ -59,14 +82,11 @@ export async function getCustomerImageInteractions(
 }
 
 export async function deleteCustomerImageInteractions(customerId: number): Promise<number> {
-  const { baseUrl, apiKey } = getInteractionsDbConfig();
+  const { baseUrl, apiKey, customerSecret } = getInteractionsDbConfig();
   const url = `${baseUrl.replace(/\/$/, '')}/api/customer-image-interactions/${customerId}`;
   const response = await fetch(url, {
     method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: getCustomerHeaders(apiKey, customerSecret, customerId),
   });
 
   if (!response.ok) {

@@ -4,6 +4,7 @@
 import { NextRequest } from 'next/server';
 
 jest.mock('@/lib/auth', () => ({
+  generateCustomerCredential: jest.fn(() => 'customer-credential'),
   verifyToken: jest.fn(),
 }));
 
@@ -77,7 +78,11 @@ describe('GET /api/listings/stack-rank', () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, ...upstreamResponse });
-    expect(mockFetchListingStackRank).toHaveBeenCalledWith({ customerId: 42, limit: 4 });
+    expect(mockFetchListingStackRank).toHaveBeenCalledWith({
+      customerId: 42,
+      customerCredential: 'customer-credential',
+      limit: 4,
+    });
   });
 
   it('honors a positive integer limit while keeping upstream credentials server-side', async () => {
@@ -86,7 +91,11 @@ describe('GET /api/listings/stack-rank', () => {
 
     await GET(makeRequest('valid-token', '?limit=7'));
 
-    expect(mockFetchListingStackRank).toHaveBeenCalledWith({ customerId: 42, limit: 7 });
+    expect(mockFetchListingStackRank).toHaveBeenCalledWith({
+      customerId: 42,
+      customerCredential: 'customer-credential',
+      limit: 7,
+    });
   });
 
   it('maps invalid limits to the default preload window', async () => {
@@ -95,7 +104,11 @@ describe('GET /api/listings/stack-rank', () => {
 
     await GET(makeRequest('valid-token', '?limit=not-a-number'));
 
-    expect(mockFetchListingStackRank).toHaveBeenCalledWith({ customerId: 42, limit: 4 });
+    expect(mockFetchListingStackRank).toHaveBeenCalledWith({
+      customerId: 42,
+      customerCredential: 'customer-credential',
+      limit: 4,
+    });
   });
 
   it('maps upstream failures to a stable bad-gateway response without leaking detail', async () => {
