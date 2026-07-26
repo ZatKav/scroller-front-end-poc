@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ListingDetailView } from '@/lib/listing-detail-view';
-import { mediaUrl } from '@/lib/media-url';
+import { isValidContentHash, mediaUrl } from '@/lib/media-url';
 
 interface ShortlistCardProps {
   view: ListingDetailView;
@@ -11,7 +11,8 @@ interface ShortlistCardProps {
 }
 
 function thumbnailHash(view: ListingDetailView): string | null {
-  return view.images[0]?.contentHash ?? null;
+  const hash = view.images[0]?.contentHash;
+  return isValidContentHash(hash) ? hash : null;
 }
 
 /** Compact horizontal listing row used on the shortlist (Figma 10/11). Tapping it

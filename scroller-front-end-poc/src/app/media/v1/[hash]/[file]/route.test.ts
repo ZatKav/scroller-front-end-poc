@@ -19,8 +19,8 @@ const mockFetchImageVariant = fetchImageVariant as jest.MockedFunction<
 
 const VALID_HASH = 'a'.repeat(64);
 
-function requestFor(headers: Record<string, string> = {}) {
-  return new Request('http://localhost/media/v1/x/card.webp', {
+function requestFor(headers: Record<string, string> = {}, search = '') {
+  return new Request(`http://localhost/media/v1/x/card.webp${search}`, {
     headers,
   }) as unknown as Parameters<typeof GET>[0];
 }
@@ -54,6 +54,7 @@ describe('GET /media/v1/[hash]/[file]', () => {
       'public, max-age=31536000, immutable',
     );
     expect(response.headers.get('etag')).toBe('"abc-card"');
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
     expect(await response.arrayBuffer()).toEqual(pngBytes());
   });
 
@@ -116,6 +117,17 @@ describe('GET /media/v1/[hash]/[file]', () => {
     const response = await GET(requestFor(), paramsFor(VALID_HASH, 'card.webp'));
 
     expect(response.status).toBe(404);
+    expect(response.headers.get('cache-control')).toBe('public, max-age=60');
+  });
+
+  it('rejects query-busting without calling upstream', async () => {
+    const response = await GET(
+      requestFor({}, '?cache-bust=1'),
+      paramsFor(VALID_HASH, 'card.webp'),
+    );
+
+    expect(response.status).toBe(404);
+    expect(mockFetchImageVariant).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -147,6 +159,18 @@ describe('GET /media/v1/[hash]/[file]', () => {
     mockFetchImageVariant.mockRejectedValue(
       new EnrichmentDbClientError('upstream exploded', 503),
     );
+
+    const response = await GET(requestFor(), paramsFor(VALID_HASH, 'card.webp'));
+
+    expect(response.status).toBe(502);
+  });
+
+  it('rejects a non-WebP upstream response', async () => {
+    mockFetchImageVariant.mockResolvedValue({
+      body: pngBytes(),
+      contentType: 'text/html',
+      etag: null,
+    });
 
     const response = await GET(requestFor(), paramsFor(VALID_HASH, 'card.webp'));
 

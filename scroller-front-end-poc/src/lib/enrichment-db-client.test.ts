@@ -105,6 +105,7 @@ describe('fetchListingDetail', () => {
           images: [
             { id: 1, content_hash: 'b'.repeat(64), is_primary: true },
             { id: 2, content_hash: null, is_primary: false },
+            { id: 3, content_hash: '../api/auth/me'.padEnd(64, 'x'), is_primary: false },
           ],
         }),
     } as Response);

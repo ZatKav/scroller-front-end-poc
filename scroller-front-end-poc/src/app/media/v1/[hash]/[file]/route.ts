@@ -4,8 +4,8 @@ import {
   EnrichmentDbConfigError,
   fetchImageVariant,
   isImageVariant,
-  isValidContentHash,
 } from '@/lib/enrichment-db-client';
+import { isValidContentHash } from '@/lib/media-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +13,14 @@ export const dynamic = 'force-dynamic';
 // change, since re-processing an image yields a different hash and therefore a
 // different URL. No purge logic, and a repeat view costs nothing.
 const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
+const NOT_FOUND_CACHE_CONTROL = 'public, max-age=60';
+
+function notFound(): NextResponse {
+  return new NextResponse(null, {
+    status: 404,
+    headers: { 'Cache-Control': NOT_FOUND_CACHE_CONTROL },
+  });
+}
 
 /**
  * Serve a listing image at a display size.
@@ -38,16 +46,22 @@ export async function GET(
 ): Promise<NextResponse> {
   const { hash, file } = await params;
 
+  // Query parameters have no meaning for content-addressed media and would let
+  // callers bypass ordinary browser/CDN cache keys for the same image.
+  if (new URL(request.url).search) {
+    return notFound();
+  }
+
   // `file` is "{variant}.webp"; the extension exists so caches and CDNs see a
   // normal image URL rather than an opaque path.
   const match = /^([a-z]+)\.webp$/.exec(file);
   if (!match) {
-    return new NextResponse(null, { status: 404 });
+    return notFound();
   }
 
   const variant = match[1];
   if (!isImageVariant(variant) || !isValidContentHash(hash)) {
-    return new NextResponse(null, { status: 404 });
+    return notFound();
   }
 
   try {
@@ -58,12 +72,18 @@ export async function GET(
     );
 
     if (result === null) {
-      return new NextResponse(null, { status: 404 });
+      return notFound();
+    }
+
+    if (result.contentType.split(';', 1)[0].trim().toLowerCase() !== 'image/webp') {
+      console.error(`Image variant upstream returned ${result.contentType}, expected image/webp`);
+      return new NextResponse(null, { status: 502 });
     }
 
     const headers = new Headers({
-      'Content-Type': result.contentType,
+      'Content-Type': 'image/webp',
       'Cache-Control': IMMUTABLE_CACHE_CONTROL,
+      'X-Content-Type-Options': 'nosniff',
     });
     if (result.etag) {
       headers.set('ETag', result.etag);

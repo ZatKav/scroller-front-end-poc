@@ -1,8 +1,8 @@
 // Typed view of the enrichment-db listing detail contract (EDB-2:
 // finder_enrichment_db_contracts.ListingDetail / ListingDetailImage). FE-2
-// proxied a deliberately loose `{ id; [k]: unknown }` because the BFF only
-// passed the payload through. FE-3 consumes the payload, so it firms up the
-// fields the detail page actually reads. Every field beyond `id` stays optional
+// originally proxied a deliberately loose `{ id; [k]: unknown }`. The server
+// clients now whitelist this renderable subset before returning a BFF response
+// or embedding data in an RSC payload. Every field beyond `id` stays optional
 // and nullable: the page renders defensively and hides anything missing rather
 // than assuming the upstream populated it.
 

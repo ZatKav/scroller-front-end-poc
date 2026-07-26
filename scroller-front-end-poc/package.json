@@ -6,7 +6,7 @@
     "dev": "next dev -p 8410",
     "build": "next build",
     "start": "next start -p 8410",
-    "lint": "next lint",
+    "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "jest --passWithNoTests",
     "test:allure:unit": "jest --passWithNoTests",

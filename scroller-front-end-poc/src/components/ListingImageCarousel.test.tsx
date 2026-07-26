@@ -233,6 +233,27 @@ describe('ListingImageCarousel', () => {
     expect(image).toHaveAttribute('sizes');
   });
 
+  it('caps and deduplicates srcset widths for a small master', () => {
+    render(
+      <ListingImageCarousel
+        images={[
+          {
+            contentHash: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+            width: 600,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId('carousel-image')).toHaveAttribute(
+      'srcset',
+      [
+        '/media/v1/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/thumb.webp 400w',
+        '/media/v1/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/card.webp 600w',
+      ].join(', '),
+    );
+  });
+
   it('sets intrinsic dimensions so the image reserves its space before loading', () => {
     render(
       <ListingImageCarousel
@@ -272,6 +293,7 @@ describe('ListingImageCarousel', () => {
     const images: CarouselImage[] = [
       { contentHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', alt: 'Front' },
       { contentHash: '', alt: 'Broken' },
+      { contentHash: '../api/auth/me'.padEnd(64, 'x'), alt: 'Malformed' },
       { contentHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', alt: 'Garden' },
     ];
     render(<ListingImageCarousel images={images} />);

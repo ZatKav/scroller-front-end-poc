@@ -86,11 +86,6 @@ export interface ImageVariantResponse {
   etag: string | null;
 }
 
-/** A content hash is a lowercase hex sha256. */
-export function isValidContentHash(value: string): boolean {
-  return /^[0-9a-f]{64}$/.test(value);
-}
-
 export function isImageVariant(value: string): value is ImageVariant {
   return (IMAGE_VARIANTS as readonly string[]).includes(value);
 }
@@ -128,6 +123,7 @@ export async function fetchImageVariant(
     response = await fetch(`${baseUrl}/api/image-variants/${contentHash}/${variant}`, {
       headers,
       cache: 'no-store',
+      signal: AbortSignal.timeout(5_000),
     });
   } catch (error) {
     throw new EnrichmentDbClientError(

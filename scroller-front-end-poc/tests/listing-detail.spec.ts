@@ -20,13 +20,32 @@ test('renders the detail page for a seeded listing', async ({ page }) => {
   // the test does not depend on ambient data, and key the navigation on its id.
   const { id } = await ensureSeededDetailListing();
 
+  const mediaResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname.includes('/media/v1/') && [200, 304].includes(response.status());
+  });
+
   await page.goto(`/listing/${id}`);
 
   await expect(
     page.getByRole('heading', { name: 'E2E Detail Seed Listing' }),
   ).toBeVisible({ timeout: 30000 });
   await expect(page.getByTestId('listing-price')).toHaveText('£450,000');
-  await expect(page.getByTestId('carousel-image').first()).toBeVisible();
+  const image = page.getByTestId('carousel-image').first();
+  await expect(image).toBeVisible();
+  const mediaResponse = await mediaResponsePromise;
+  expect(mediaResponse.headers()['content-type']).toContain('image/webp');
+  await expect(image).toHaveAttribute(
+    'src',
+    /\/media\/v1\/[0-9a-f]{64}\/(thumb|card|full)\.webp/,
+  );
+  await expect(image).toHaveAttribute('srcset', /\/media\/v1\/[0-9a-f]{64}\//);
+  const naturalWidth = await image.evaluate(async (node) => {
+    const element = node as HTMLImageElement;
+    await element.decode();
+    return element.naturalWidth;
+  });
+  expect(naturalWidth).toBeGreaterThan(0);
 });
 
 test('opens listing discovery from the detail page entry point', async ({ page }) => {

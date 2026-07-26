@@ -1,4 +1,5 @@
 import type { ListingDetail, ListingDetailImage } from '@/types/enrichment-db';
+import { isValidContentHash } from '@/lib/media-url';
 
 /**
  * Reduce an upstream listing to the fields the browser actually renders.
@@ -22,7 +23,7 @@ import type { ListingDetail, ListingDetailImage } from '@/types/enrichment-db';
 export interface ListingImageRef {
   id: number;
   /** Addresses the pre-rendered variants at /media/v1/{content_hash}/{variant}.webp */
-  content_hash: string | null;
+  content_hash: string;
   alt_text: string | null;
   position: number | null;
   is_primary: boolean;
@@ -44,10 +45,12 @@ export interface SlimListing {
   images: ListingImageRef[];
 }
 
-function toImageRef(image: ListingDetailImage): ListingImageRef {
+function toImageRef(
+  image: ListingDetailImage & { content_hash: string },
+): ListingImageRef {
   return {
     id: image.id,
-    content_hash: image.content_hash ?? null,
+    content_hash: image.content_hash,
     alt_text: image.alt_text ?? null,
     position: image.position ?? null,
     is_primary: Boolean(image.is_primary),
@@ -72,7 +75,12 @@ export function slimListing(listing: ListingDetail): SlimListing {
     // An image with no content_hash cannot be addressed at /media, so it would
     // render as a broken slot. Drop it here so the carousel's dots and paging
     // only ever reflect images that can actually load.
-    images: images.filter((image) => Boolean(image.content_hash)).map(toImageRef),
+    images: images
+      .filter(
+        (image): image is ListingDetailImage & { content_hash: string } =>
+          isValidContentHash(image.content_hash),
+      )
+      .map(toImageRef),
   };
 }
 

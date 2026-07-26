@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { mediaSrcSet, mediaUrl } from '@/lib/media-url';
+import { isValidContentHash, mediaSrcSet, mediaUrl } from '@/lib/media-url';
 
 // Horizontal swipe gesture tuning, reused from ImageScroller (PRO-236): a swipe
 // only counts when it travels at least SWIPE_MIN_DISTANCE_PX horizontally AND its
@@ -55,7 +55,7 @@ interface ListingImageCarouselProps {
 export default function ListingImageCarousel({ images }: ListingImageCarouselProps) {
   // Drop unaddressable images so the dots and navigation only ever reflect
   // renderable images, never a broken <img> (PRO-254).
-  const renderable = images.filter((image) => Boolean(image.contentHash));
+  const renderable = images.filter((image) => isValidContentHash(image.contentHash));
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -90,9 +90,9 @@ export default function ListingImageCarousel({ images }: ListingImageCarouselPro
   // The next and previous images, which are the only ones a swipe or arrow can
   // reach in one step. Deliberately not the whole set: preloading 30 images
   // would recreate the very problem this change removes.
-  const preloadHashes = [renderable[activeIndex + 1], renderable[activeIndex - 1]]
-    .filter((image): image is CarouselImage => Boolean(image))
-    .map((image) => image.contentHash);
+  const preloadImages = [renderable[activeIndex + 1], renderable[activeIndex - 1]].filter(
+    (image): image is CarouselImage => Boolean(image),
+  );
   const visibleDotIndexes = renderable
     .slice(windowStart, windowStart + MAX_VISIBLE_DOTS)
     .map((_, offset) => windowStart + offset);
@@ -186,7 +186,7 @@ export default function ListingImageCarousel({ images }: ListingImageCarouselPro
           // the new one decodes.
           key={currentImage.contentHash}
           src={mediaUrl(currentImage.contentHash, 'card')}
-          srcSet={mediaSrcSet(currentImage.contentHash)}
+          srcSet={mediaSrcSet(currentImage.contentHash, currentImage.width)}
           // Describes the real slot so the browser can pick the smallest
           // candidate that covers it. The card is max-w-[420px] with p-4, and
           // the page adds px-3, so the image box is 100vw-56px until the card
@@ -212,12 +212,12 @@ export default function ListingImageCarousel({ images }: ListingImageCarouselPro
             before, which made every swipe wait on a full download and decode.
             These are hidden and lazily fetched, so they cost nothing visually
             and never compete with the visible image. */}
-        {preloadHashes.map((hash) => (
+        {preloadImages.map((image) => (
           <img
-            key={`preload-${hash}`}
+            key={`preload-${image.contentHash}`}
             data-testid="carousel-preload"
-            src={mediaUrl(hash, 'card')}
-            srcSet={mediaSrcSet(hash)}
+            src={mediaUrl(image.contentHash, 'card')}
+            srcSet={mediaSrcSet(image.contentHash, image.width)}
             sizes="(max-width: 448px) calc(100vw - 56px), 388px"
             alt=""
             aria-hidden="true"

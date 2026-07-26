@@ -43,6 +43,14 @@
         "react-hooks/rules-of-hooks": "off",
         "@next/next/no-html-link-for-pages": "off"
       }
+    },
+    {
+      "files": [
+        "*.config.js"
+      ],
+      "rules": {
+        "@typescript-eslint/no-require-imports": "off"
+      }
     }
   ]
 }
