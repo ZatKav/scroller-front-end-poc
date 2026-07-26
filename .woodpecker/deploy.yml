@@ -1,0 +1,168 @@
+labels:
+  execution: deploy
+
+depends_on: [ci]
+
+when:
+  event: push
+  branch: main
+
+steps:
+  - name: build
+    image: quay.io/podman/stable:latest
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      CONTAINER_HOST: unix:///var/run/docker.sock
+    commands:
+      - |
+        mkdir -p deploy-logs
+        LOG="deploy-logs/build.txt"
+        set +e
+        podman build --build-arg NEXT_PUBLIC_BASE_PATH=/scroller -t localhost/scroller-front-end-poc:latest -f scroller-front-end-poc/Containerfile scroller-front-end-poc >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then rm -f "$LOG"; fi
+        exit $STATUS
+
+  - name: push
+    image: quay.io/podman/stable:latest
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      CONTAINER_HOST: unix:///var/run/docker.sock
+    commands:
+      - |
+        mkdir -p deploy-logs
+        LOG="deploy-logs/push.txt"
+        set +e
+        sh -eu -c '
+          podman tag localhost/scroller-front-end-poc:latest host.containers.internal:5000/scroller-front-end-poc:latest
+          podman push --tls-verify=false host.containers.internal:5000/scroller-front-end-poc:latest
+        ' >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then rm -f "$LOG"; fi
+        exit $STATUS
+
+  - name: deploy
+    image: quay.io/podman/stable:latest
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      CONTAINER_HOST: unix:///var/run/docker.sock
+      PODMAN_HEALTHCHECK_URL: http://host.containers.internal:8410/scroller/login
+    commands:
+      - |
+        mkdir -p deploy-logs
+        LOG="deploy-logs/deploy.txt"
+        set +e
+        sh -eu -c '
+          if ! command -v curl >/dev/null 2>&1; then
+            if command -v apk >/dev/null 2>&1; then apk add --no-cache curl; else dnf install -y curl; fi
+          fi
+          tmp_reg_conf=$(mktemp)
+          trap '\''rm -f "$tmp_reg_conf"'\'' EXIT
+          printf '\''%s\n'\'' '\''unqualified-search-registries = ["docker.io"]'\'' '\''[[registry]]'\'' '\''location = "host.containers.internal:5000"'\'' '\''insecure = true'\'' > "$tmp_reg_conf"
+          CONTAINERS_REGISTRIES_CONF="$tmp_reg_conf" podman pull --tls-verify=false host.containers.internal:5000/scroller-front-end-poc:latest
+          CONTAINERS_REGISTRIES_CONF="$tmp_reg_conf" podman play kube --down podman-scroller-kube.yaml 2>/dev/null || true
+          podman rm -f scroller-front-end-poc-local >/dev/null 2>&1 || true
+          CONTAINERS_REGISTRIES_CONF="$tmp_reg_conf" podman play kube --tls-verify=false podman-scroller-kube.yaml
+          attempts=45
+          until curl -fsS "$PODMAN_HEALTHCHECK_URL" >/dev/null; do
+            attempts=$((attempts - 1))
+            if [ "$attempts" -le 0 ]; then exit 1; fi
+            sleep 2
+          done
+          curl -s -o /dev/null http://host.containers.internal:8410/scroller/ || true
+          curl -s -o /dev/null http://host.containers.internal:8410/scroller/api/auth/me || true
+        ' >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then rm -f "$LOG"; fi
+        exit $STATUS
+
+  - name: login-smoke
+    image: mcr.microsoft.com/playwright:v1.58.2-noble
+    environment:
+      E2E_LOGIN_USERNAME: jack
+      E2E_LOGIN_PASSWORD: jackNgrok2026!
+    commands:
+      - |
+        mkdir -p deploy-logs
+        LOG="deploy-logs/login-smoke.txt"
+        set +e
+        sh -eu -c '
+          cd scroller-front-end-poc
+          npm ci
+          npm run test:e2e:deploy-smoke
+        ' >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then rm -f "$LOG"; fi
+        exit $STATUS
+
+  - name: deployment-diagnostics
+    image: quay.io/podman/stable:latest
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      CONTAINER_HOST: unix:///var/run/docker.sock
+    when:
+      status: [success, failure]
+    commands:
+      - |
+        mkdir -p deploy-logs
+        {
+          echo "Pod status"
+          podman pod ps --filter name=pod_scroller_front_end || true
+          echo "Container status"
+          podman ps -a --filter pod=pod_scroller_front_end || true
+          echo "Pod logs"
+          podman pod logs pod_scroller_front_end || true
+        } | tee deploy-logs/deployment-diagnostics.txt
+
+  - name: deploy-allure-report
+    image: docker.io/andgineer/allure:2.36.0
+    when:
+      status: [success, failure]
+    commands:
+      - |
+        RESULTS_DIR="scroller-front-end-poc/allure-results-e2e"
+        if [ -d "$RESULTS_DIR" ] && [ "$(ls -A "$RESULTS_DIR" 2>/dev/null)" ]; then
+          /opt/allure-2.36.0/bin/allure generate "$RESULTS_DIR" --clean -o deploy-allure-report
+        else
+          echo "No deploy-smoke Allure results found; skipping report generation"
+        fi
+
+  - name: store-deploy-report-locally
+    image: alpine:latest
+    when:
+      status: [success, failure]
+    commands:
+      - |
+        REPORT_DIR="/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/deploy"
+        mkdir -p "$REPORT_DIR"
+
+        if [ -d deploy-allure-report ] && [ "$(ls -A deploy-allure-report 2>/dev/null)" ]; then
+          mkdir -p "$REPORT_DIR/allure"
+          cp -r deploy-allure-report/. "$REPORT_DIR/allure/"
+          echo "Deploy report URL: http://localhost:8080/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/deploy/allure/index.html"
+        fi
+
+        ALLURE_SRC="scroller-front-end-poc/allure-results-e2e"
+        if [ -d "$ALLURE_SRC" ] && [ "$(ls -A "$ALLURE_SRC" 2>/dev/null)" ]; then
+          mkdir -p "$REPORT_DIR/allure-results"
+          cp -r "$ALLURE_SRC"/. "$REPORT_DIR/allure-results/"
+        fi
+
+        if [ -d deploy-logs ] && [ "$(ls -A deploy-logs 2>/dev/null)" ]; then
+          mkdir -p "$REPORT_DIR/logs"
+          cp -r deploy-logs/. "$REPORT_DIR/logs/"
+        fi
+
+        PW_SRC="scroller-front-end-poc"
+        if [ -d "$PW_SRC/test-results" ] && [ "$(ls -A "$PW_SRC/test-results" 2>/dev/null)" ]; then
+          mkdir -p "$REPORT_DIR/playwright/test-results"
+          cp -r "$PW_SRC/test-results"/. "$REPORT_DIR/playwright/test-results/"
+        fi
+        if [ -d "$PW_SRC/playwright-report" ] && [ "$(ls -A "$PW_SRC/playwright-report" 2>/dev/null)" ]; then
+          mkdir -p "$REPORT_DIR/playwright/report"
+          cp -r "$PW_SRC/playwright-report"/. "$REPORT_DIR/playwright/report/"
+        fi

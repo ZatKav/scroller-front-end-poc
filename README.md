@@ -151,8 +151,8 @@ Legacy command names are retained as compatibility aliases and now call the cano
 - `make podman-ci-deploy`
 - `make podman-deploy-ci`
 
-For CI main deploy, `.woodpecker.yml` uses `make podman-deploy` with
-`PODMAN_HEALTHCHECK_URL=http://host.containers.internal:8410`.
+For CI main deploy, `.woodpecker/deploy.yml` performs the same registry pull,
+manifest rollout, and health check through the remote Podman service.
 
 Default seeded login credentials for local/CI checks:
 
@@ -163,7 +163,7 @@ The previous Jack default password (`password123`) is intentionally retired and 
 If you need to rotate Jack again before exposing a public endpoint, update:
 
 - `scroller-front-end-poc/data/users.json` (bcrypt hash)
-- `.woodpecker.yml` and any local `E2E_LOGIN_PASSWORD` overrides
+- `.woodpecker/ci.yml`, `.woodpecker/deploy.yml`, and any local `E2E_LOGIN_PASSWORD` overrides
 
 For ticket-driven branch handoff, rotate this value before branch push if a different owner-managed Jack password is required.
 
@@ -213,9 +213,10 @@ Optional overrides:
 
 ## CI report and log artifacts
 
-- `.woodpecker.yml` now includes `allure-report` and `store-report-locally` post-run stages that execute on both successful and failed pipelines.
+- `.woodpecker/ci.yml` generates and stores validation reports on both successful and failed pipelines.
 - Combined Allure HTML output is published to `/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/index.html`, and `latest` is updated per branch.
 - Only retained problem-stage logs are copied into `/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/ci-logs/`; logs from successful stages are deleted before artifact storage.
+- `.woodpecker/deploy.yml` stores deploy-smoke Allure, Playwright, trace, and diagnostic artifacts below `/reports/${CI_REPO}/${CI_COMMIT_BRANCH}/${CI_COMMIT_SHA}/deploy/` without replacing the CI report root.
 
 ## Project structure
 
