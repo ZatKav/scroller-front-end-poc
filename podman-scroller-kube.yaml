@@ -1,5 +1,14 @@
 # Kubernetes manifest for Scroller Front-End PoC
-# Deploy with: podman play kube podman-scroller-kube.yaml
+#
+# Deploy with: make podman-deploy
+#
+# Do NOT run `podman play kube` against this file directly. It is a template:
+# SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET below holds a double-underscore
+# placeholder token, which the make target substitutes into a temporary rendered
+# copy. Deploying the raw file starts the app with that 43-character placeholder
+# as its JWT signing secret, so the credentials it mints are rejected by
+# scroller-customer-interactions-db and every stack-rank request fails — the
+# front end surfaces only a generic 502.
 
 apiVersion: v1
 kind: Pod
@@ -20,6 +29,9 @@ spec:
           value: http://host.containers.internal:8400
         - name: SCROLLER_CUSTOMER_INTERACTIONS_DB_API_KEY
           value: a9e08181c6f01244edc35813e387102bd9c889d014d10d27d940d62d7aaf827d
+        # Placeholder, substituted by `make podman-deploy`. Must match the value
+        # scroller-customer-interactions-db verifies with, or every credential
+        # this app mints is rejected.
         - name: SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET
           value: __SCROLLER_CUSTOMER_CREDENTIAL_JWT_SECRET__
         - name: ENRICHMENT_DB_BASE_URL
