@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Response } from '@playwright/test';
 import { loginAndExpectAuthenticated, scrollerEntryPath } from './helpers/login';
 import {
   deleteSeededScrollerListing,

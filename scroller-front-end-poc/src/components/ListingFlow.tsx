@@ -47,10 +47,12 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
   const [loadingMore, setLoadingMore] = useState(false);
   const [queueError, setQueueError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [noMoreListings, setNoMoreListings] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [resettingPreferences, setResettingPreferences] = useState(false);
   const listingShownAtMsRef = useRef(Date.now());
+  // Mirrors `listings` so the merge path can read the current value without
+  // depending on a state updater's argument.
+  const listingsRef = useRef<ListingDetail[]>(initialListing ? [initialListing] : []);
   const mountedRef = useRef(false);
   const refillInFlightRef = useRef(false);
   const actionInFlightRef = useRef(false);
@@ -101,11 +103,17 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
         return;
       }
 
-      setListings((previousListings) => {
-        const mergedListings = appendUniqueListings(previousListings, windowListings);
-        setNoMoreListings(mergedListings.length === previousListings.length);
-        return mergedListings;
-      });
+      // Merge against the ref rather than inside a setListings updater. Calling
+      // setNoMoreListings from within an updater made that updater impure, so a
+      // repeated invocation could latch "no more listings" from a stale
+      // comparison.
+      const previousListings = listingsRef.current;
+      const mergedListings = appendUniqueListings(previousListings, windowListings);
+      listingsRef.current = mergedListings;
+      setListings(mergedListings);
+      // Nothing to latch here: the "no more listings" screen is driven by there
+      // being no current listing, and an empty continuation is treated as
+      // transient so a later attempt can still return more.
     } catch {
       if (!mountedRef.current || queueGeneration !== queueGenerationRef.current) {
         return;
@@ -138,14 +146,15 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
       }
 
       const uniqueListings = appendUniqueListings([], windowListings);
+      listingsRef.current = uniqueListings;
       setListings(uniqueListings);
       setCurrentIndex(0);
-      setNoMoreListings(uniqueListings.length === 0);
     } catch {
       if (!mountedRef.current || queueGeneration !== queueGenerationRef.current) {
         return;
       }
 
+      listingsRef.current = [];
       setListings([]);
       setCurrentIndex(0);
       setQueueError('Failed to load listings.');
@@ -162,26 +171,34 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
     }
   }
 
-  function maybePrefetch(nextIndex: number, ignoreNoMoreListings = false) {
-    const remainingListings = listings.length - nextIndex;
-    if (
-      queueError !== null
-      || (!ignoreNoMoreListings && noMoreListings)
-      || remainingListings > PREFETCH_THRESHOLD
-    ) {
+  // Top the queue up as the user approaches the end of what is buffered.
+  //
+  // This runs as an effect rather than inside the setCurrentIndex updater it
+  // used to live in. A state updater must be pure: React can invoke it more
+  // than once for a single update, which would fire duplicate continuation
+  // requests, and it made the fetch decision read a stale `listings.length`
+  // captured by the enclosing render.
+  //
+  // `noMoreListings` is deliberately NOT a guard here. An exhausted
+  // continuation is treated as transient: recording a preference changes what
+  // the upstream ranker considers unseen, so a later attempt can legitimately
+  // return more (covered by the post-action loading-state test). The retry is
+  // naturally bounded — once the buffer is spent there is no current listing,
+  // so no action buttons remain to press.
+  useEffect(() => {
+    if (initialLoading || queueError !== null) {
       return;
     }
-
+    if (listings.length - currentIndex > PREFETCH_THRESHOLD) {
+      return;
+    }
     void loadMoreListings(CONTINUATION_LOAD_LIMIT);
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, listings.length, queueError, initialLoading]);
 
   function advanceQueue() {
     setActionError(null);
-    setCurrentIndex((previousIndex) => {
-      const nextIndex = previousIndex + 1;
-      maybePrefetch(nextIndex, true);
-      return nextIndex;
-    });
+    setCurrentIndex((previousIndex) => previousIndex + 1);
   }
 
   async function recordPreference(action: 0 | 1 | 2) {
@@ -223,9 +240,9 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
 
     try {
       await scrollerCustomerInteractionsDbApiClient.deleteCustomerListingInteractions(user.id);
+      listingsRef.current = [];
       setListings([]);
       setCurrentIndex(0);
-      setNoMoreListings(false);
       setInitialLoading(true);
       await reloadListingQueue(CONTINUATION_LOAD_LIMIT);
     } catch (error) {
@@ -243,8 +260,7 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
     mountedRef.current = true;
 
     void (async () => {
-      // First paint: fetch only the first listing so it appears quickly even
-      // when a listing carries many (base64) images.
+      // First paint: fetch only the first listing so it appears quickly.
       if (initialListing === null) {
         await loadMoreListings(INITIAL_LOAD_LIMIT, true);
       }
@@ -257,6 +273,10 @@ export default function ListingFlow({ initialListing = null }: ListingFlowProps)
     return () => {
       mountedRef.current = false;
     };
+    // Mount-only on purpose: this seeds the queue once. `initialListing` is a
+    // server-rendered prop for this mount, and re-running on a change to it
+    // would re-seed a queue the user is already partway through.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (initialLoading) {

@@ -134,7 +134,10 @@ export function toCarouselImages(
   if (!Array.isArray(images)) {
     return [];
   }
-  const renderable = images.filter((image) => Boolean(image.image_data));
+  // An image with no content_hash cannot be addressed at /media, so it would
+  // render as a broken slot. Dropping it here keeps the carousel's dots and
+  // paging in step with what can actually load.
+  const renderable = images.filter((image) => Boolean(image.content_hash));
   const ordered = [...renderable].sort((a, b) => {
     const aPrimary = a.is_primary ? 0 : 1;
     const bPrimary = b.is_primary ? 0 : 1;
@@ -146,8 +149,10 @@ export function toCarouselImages(
     return aPosition - bPosition;
   });
   return ordered.map((image) => ({
-    image_data: image.image_data as string,
+    contentHash: image.content_hash as string,
     alt: trimmedOrNull(image.alt_text) ?? title ?? undefined,
+    width: image.width ?? null,
+    height: image.height ?? null,
   }));
 }
 

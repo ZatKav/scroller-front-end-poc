@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start -p 8410",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
     "test": "jest --passWithNoTests",
     "test:allure:unit": "jest --passWithNoTests",
     "test:watch": "jest --watch",

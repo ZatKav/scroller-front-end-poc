@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { mediaSrcSet, mediaUrl } from '@/lib/media-url';
 
 // Horizontal swipe gesture tuning, reused from ImageScroller (PRO-236): a swipe
 // only counts when it travels at least SWIPE_MIN_DISTANCE_PX horizontally AND its
@@ -30,11 +31,18 @@ function dotWindowStart(activeIndex: number, total: number): number {
 
 // A single image in the carousel. Deliberately minimal and local so this
 // component does not depend on the enrichment-db client/types (FE-2); the detail
-// page (FE-3) maps its data onto this shape. `image_data` is raw base64 or an
-// already-prefixed `data:` URI (PRO-254).
+// page (FE-3) maps its data onto this shape.
+//
+// `contentHash` addresses the pre-rendered display variants served from /media.
+// It replaced an inline base64 `image_data` string: those could not be cached,
+// lazy-loaded or size-selected, so every listing shipped full-resolution bytes
+// for images the user never looked at.
 export interface CarouselImage {
-  image_data: string;
+  contentHash: string;
   alt?: string;
+  /** Intrinsic master dimensions, used to reserve layout space. */
+  width?: number | null;
+  height?: number | null;
 }
 
 interface ListingImageCarouselProps {
@@ -45,9 +53,9 @@ interface ListingImageCarouselProps {
 // keyboard arrows move between a listing's images. It records nothing and makes
 // no API calls — that is what separates it from ImageScroller (PRO-254).
 export default function ListingImageCarousel({ images }: ListingImageCarouselProps) {
-  // Drop images with no bytes so the dots and navigation only ever reflect
+  // Drop unaddressable images so the dots and navigation only ever reflect
   // renderable images, never a broken <img> (PRO-254).
-  const renderable = images.filter((image) => Boolean(image.image_data));
+  const renderable = images.filter((image) => Boolean(image.contentHash));
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -79,6 +87,12 @@ export default function ListingImageCarousel({ images }: ListingImageCarouselPro
   const hasMultiple = renderable.length > 1;
   const showDotArrows = renderable.length > MAX_VISIBLE_DOTS;
   const windowStart = dotWindowStart(activeIndex, renderable.length);
+  // The next and previous images, which are the only ones a swipe or arrow can
+  // reach in one step. Deliberately not the whole set: preloading 30 images
+  // would recreate the very problem this change removes.
+  const preloadHashes = [renderable[activeIndex + 1], renderable[activeIndex - 1]]
+    .filter((image): image is CarouselImage => Boolean(image))
+    .map((image) => image.contentHash);
   const visibleDotIndexes = renderable
     .slice(windowStart, windowStart + MAX_VISIBLE_DOTS)
     .map((_, offset) => windowStart + offset);
@@ -167,16 +181,51 @@ export default function ListingImageCarousel({ images }: ListingImageCarouselPro
       >
         <img
           data-testid="carousel-image"
-          // Copied from ImageScroller.tsx:418: prefix raw base64, but pass an
-          // already-prefixed data: URI through unchanged (PRO-254).
-          src={
-            currentImage.image_data.startsWith('data:')
-              ? currentImage.image_data
-              : `data:image/jpeg;base64,${currentImage.image_data}`
-          }
+          // Keyed by hash so React swaps the element rather than mutating src
+          // on one node, which would otherwise show the previous image until
+          // the new one decodes.
+          key={currentImage.contentHash}
+          src={mediaUrl(currentImage.contentHash, 'card')}
+          srcSet={mediaSrcSet(currentImage.contentHash)}
+          // Describes the real slot so the browser can pick the smallest
+          // candidate that covers it. The card is max-w-[420px] with p-4, and
+          // the page adds px-3, so the image box is 100vw-56px until the card
+          // stops growing, then a fixed 388px. Without `sizes` the browser
+          // assumes full viewport width and always over-fetches.
+          sizes="(max-width: 448px) calc(100vw - 56px), 388px"
+          // Intrinsic size lets the browser reserve the right box before the
+          // bytes arrive. The aspect-ratio frame already prevents shift, so
+          // these are belt-and-braces for when the frame is not applied.
+          width={currentImage.width ?? undefined}
+          height={currentImage.height ?? undefined}
           alt={currentImage.alt || 'Listing image'}
+          // The visible image is the point of the page: fetch it first and
+          // decode it off the critical path.
+          // React 18's DOM typings predate fetchpriority. The attribute is
+          // valid HTML and browsers honour it, so it is spread in directly.
+          {...({ fetchpriority: 'high' } as { fetchpriority: string })}
+          decoding="async"
           className="h-full w-full object-contain"
         />
+        {/* Warm the neighbours so a swipe is an already-decoded image rather
+            than a cold fetch. Only the current image was ever in the DOM
+            before, which made every swipe wait on a full download and decode.
+            These are hidden and lazily fetched, so they cost nothing visually
+            and never compete with the visible image. */}
+        {preloadHashes.map((hash) => (
+          <img
+            key={`preload-${hash}`}
+            data-testid="carousel-preload"
+            src={mediaUrl(hash, 'card')}
+            srcSet={mediaSrcSet(hash)}
+            sizes="(max-width: 448px) calc(100vw - 56px), 388px"
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            decoding="async"
+            className="pointer-events-none absolute h-px w-px opacity-0"
+          />
+        ))}
       </div>
       {/* Announce the current position for assistive tech as it changes (PRO-254). */}
       <p data-testid="carousel-status" role="status" className="sr-only">

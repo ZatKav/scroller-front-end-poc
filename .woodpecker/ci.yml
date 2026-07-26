@@ -5,6 +5,30 @@ when:
   evaluate: 'CI_PIPELINE_EVENT == "pull_request" || CI_PIPELINE_EVENT == "manual" || (CI_PIPELINE_EVENT == "push" && CI_COMMIT_BRANCH == "main")'
 
 steps:
+  # Static analysis runs first: it is the fastest signal and catches a class of
+  # problem the test suite cannot. Neither check was wired up before, which is
+  # why `tsc --noEmit` had accumulated ~150 errors and `npm run lint` had never
+  # been able to run at all (there was no ESLint config in the repo).
+  - name: validate
+    image: node:20-alpine
+    commands:
+      - |
+        mkdir -p ci-logs
+        LOG="ci-logs/validate.txt"
+        set +e
+        sh -eu -c '
+          cd scroller-front-end-poc
+          npm ci
+          npm run typecheck
+          npm run lint
+        ' >"$LOG" 2>&1
+        STATUS=$?
+        cat "$LOG"
+        if [ $STATUS -eq 0 ]; then
+          rm -f "$LOG"
+        fi
+        exit $STATUS
+
   - name: test-unit
     image: node:20-alpine
     commands:

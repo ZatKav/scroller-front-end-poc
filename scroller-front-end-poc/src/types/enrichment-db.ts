@@ -22,12 +22,23 @@ export interface ListingDetailLocation {
 
 export interface ListingDetailImage {
   id: number;
+  // Present on the upstream payload; stripped by `slimListing` before anything
+  // reaches the browser. Images are addressed by content_hash and fetched from
+  // /media instead of being inlined as base64.
   image_data?: string | null;
+  // Addresses the pre-rendered display variants at
+  // /media/v1/{content_hash}/{variant}.webp. Null for images the backfill has
+  // not processed yet, which are dropped rather than rendered broken.
+  content_hash?: string | null;
   alt_text?: string | null;
   // Carousel ordering signals: the hero image carries is_primary, and position
   // records each image's slot in the submitted pack. The FE orders on these.
   position?: number | null;
   is_primary?: boolean;
+  // Intrinsic master dimensions, used to reserve layout space so images do not
+  // shift content as they load.
+  width?: number | null;
+  height?: number | null;
 }
 
 export interface ListingDetail {
