@@ -9,6 +9,7 @@ import type {
   ListingDetailImage,
 } from '@/types/enrichment-db';
 import type { CarouselImage } from '@/components/ListingImageCarousel';
+import { isValidContentHash } from '@/lib/media-url';
 
 // `New` recency window: a listing first seen within this many days is New
 // (PRO-255 decision — 7 days).
@@ -134,7 +135,13 @@ export function toCarouselImages(
   if (!Array.isArray(images)) {
     return [];
   }
-  const renderable = images.filter((image) => Boolean(image.image_data));
+  // An image with no content_hash cannot be addressed at /media, so it would
+  // render as a broken slot. Dropping it here keeps the carousel's dots and
+  // paging in step with what can actually load.
+  const renderable = images.filter(
+    (image): image is ListingDetailImage & { content_hash: string } =>
+      isValidContentHash(image.content_hash),
+  );
   const ordered = [...renderable].sort((a, b) => {
     const aPrimary = a.is_primary ? 0 : 1;
     const bPrimary = b.is_primary ? 0 : 1;
@@ -146,8 +153,10 @@ export function toCarouselImages(
     return aPosition - bPosition;
   });
   return ordered.map((image) => ({
-    image_data: image.image_data as string,
+    contentHash: image.content_hash,
     alt: trimmedOrNull(image.alt_text) ?? title ?? undefined,
+    width: image.width ?? null,
+    height: image.height ?? null,
   }));
 }
 

@@ -103,43 +103,43 @@ describe('formatLocation', () => {
 
 describe('toCarouselImages', () => {
   function image(overrides: Partial<ListingDetailImage>): ListingDetailImage {
-    return { id: 1, image_data: 'AAAA', ...overrides };
+    return { id: 1, content_hash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', ...overrides };
   }
 
   it('orders the primary image first then by ascending position', () => {
     const images = [
-      image({ id: 1, position: 2, is_primary: false, image_data: 'pos2' }),
-      image({ id: 2, position: 0, is_primary: true, image_data: 'primary' }),
-      image({ id: 3, position: 1, is_primary: false, image_data: 'pos1' }),
+      image({ id: 1, position: 2, is_primary: false, content_hash: '2222222222222222222222222222222222222222222222222222222222222222' }),
+      image({ id: 2, position: 0, is_primary: true, content_hash: '0000000000000000000000000000000000000000000000000000000000000000' }),
+      image({ id: 3, position: 1, is_primary: false, content_hash: '1111111111111111111111111111111111111111111111111111111111111111' }),
     ];
 
-    expect(toCarouselImages(images, 'Flat').map((i) => i.image_data)).toEqual([
-      'primary',
-      'pos1',
-      'pos2',
+    expect(toCarouselImages(images, 'Flat').map((i) => i.contentHash)).toEqual([
+      '0000000000000000000000000000000000000000000000000000000000000000',
+      '1111111111111111111111111111111111111111111111111111111111111111',
+      '2222222222222222222222222222222222222222222222222222222222222222',
     ]);
   });
 
   it('drops images with no bytes', () => {
     const images = [
-      image({ id: 1, image_data: null }),
-      image({ id: 2, image_data: 'bytes' }),
+      image({ id: 1, content_hash: null }),
+      image({ id: 2, content_hash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' }),
     ];
 
     expect(toCarouselImages(images, null)).toEqual([
-      { image_data: 'bytes', alt: undefined },
+      { contentHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', alt: undefined, width: null, height: null },
     ]);
   });
 
   it('uses alt_text when present and falls back to the title', () => {
     const images = [
-      image({ id: 1, alt_text: 'Kitchen', image_data: 'a' }),
-      image({ id: 2, alt_text: null, image_data: 'b' }),
+      image({ id: 1, alt_text: 'Kitchen', content_hash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }),
+      image({ id: 2, alt_text: null, content_hash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' }),
     ];
 
     expect(toCarouselImages(images, 'Riverside Flat')).toEqual([
-      { image_data: 'a', alt: 'Kitchen' },
-      { image_data: 'b', alt: 'Riverside Flat' },
+      { contentHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', alt: 'Kitchen', width: null, height: null },
+      { contentHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', alt: 'Riverside Flat', width: null, height: null },
     ]);
   });
 
@@ -160,7 +160,7 @@ describe('mapListingToView', () => {
     first_seen: daysAgo(1),
     location: { address: { address_line_1: '1 River Way', postcode: 'RH1 1AA' } },
     images: [
-      { id: 1, image_data: 'bytes', is_primary: true, position: 0 },
+      { id: 1, content_hash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', is_primary: true, position: 0 },
     ],
   };
 
@@ -176,7 +176,7 @@ describe('mapListingToView', () => {
       location: '1 River Way, RH1 1AA',
       description: 'Bright and modern apartment.',
       tags: ['New', 'Garden'],
-      images: [{ image_data: 'bytes', alt: 'Riverside Apartment' }],
+      images: [{ contentHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', alt: 'Riverside Apartment', width: null, height: null }],
     });
   });
 

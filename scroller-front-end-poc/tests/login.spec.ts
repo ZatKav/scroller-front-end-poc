@@ -30,16 +30,6 @@ test.afterAll(async () => {
   await deleteSeededScrollerListing();
 });
 
-function isStackRankWindowResponse(response: Response, skip: number, limit: number): boolean {
-  const url = new URL(response.url());
-  return (
-    url.pathname === '/api/stack-rank'
-    && url.searchParams.get('skip') === String(skip)
-    && url.searchParams.get('limit') === String(limit)
-    && response.request().method() === 'GET'
-  );
-}
-
 test('retired default jack password is rejected', async ({ page }) => {
   await page.goto('/login');
   await expect(page).toHaveURL(/\/login(?:[/?#].*)?$/);

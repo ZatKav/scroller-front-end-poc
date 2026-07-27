@@ -12,7 +12,7 @@ function makeView(overrides: Partial<ListingDetailView> = {}): ListingDetailView
     location: '1 River Way, RH1 1AA',
     description: 'Bright and modern apartment.',
     tags: ['New', 'Garden'],
-    images: [{ image_data: 'AAAA', alt: 'Riverside Apartment' }],
+    images: [{ contentHash: 'a'.repeat(64), alt: 'Riverside Apartment', width: null, height: null }],
     ...overrides,
   };
 }

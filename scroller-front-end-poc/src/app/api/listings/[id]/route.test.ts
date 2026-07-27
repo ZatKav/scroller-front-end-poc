@@ -89,7 +89,7 @@ describe('GET /api/listings/[id]', () => {
   });
 
   describe('success', () => {
-    it('passes the enrichment-db listing through verbatim', async () => {
+    it('returns the slim listing DTO produced by the enrichment-db client', async () => {
       const listing = { id: 123, price: 450000, images: [{ id: 1 }] };
       mockVerifyToken.mockReturnValueOnce(MOCK_USER);
       mockFetchListingDetail.mockResolvedValueOnce(listing);

@@ -8,7 +8,7 @@ const API_KEY = 'test-api-key';
 const AUTH_COOKIE = 'auth-token=valid-token';
 
 const mockVerifyToken = jest.fn();
-const mockGenerateCustomerCredential = jest.fn(() => 'customer-credential');
+const mockGenerateCustomerCredential = jest.fn((_customerId: number) => 'customer-credential');
 
 jest.mock('@/lib/auth', () => ({
   generateCustomerCredential: (customerId: number) => mockGenerateCustomerCredential(customerId),

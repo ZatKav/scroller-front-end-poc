@@ -16,9 +16,9 @@ const mockCreateCustomerListingInteraction =
   scrollerCustomerInteractionsDbApiClient.createCustomerListingInteraction as jest.Mock;
 
 const IMAGES: CarouselImage[] = [
-  { image_data: 'AAAA', alt: 'Front of house' },
-  { image_data: 'BBBB', alt: 'Kitchen' },
-  { image_data: 'CCCC', alt: 'Garden' },
+  { contentHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', alt: 'Front of house' },
+  { contentHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', alt: 'Kitchen' },
+  { contentHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', alt: 'Garden' },
 ];
 
 const SWIPE_START = { x: 200, y: 200 };
@@ -46,7 +46,7 @@ describe('ListingImageCarousel', () => {
     render(<ListingImageCarousel images={IMAGES} />);
 
     const img = screen.getByTestId('carousel-image');
-    expect(img).toHaveAttribute('src', 'data:image/jpeg;base64,AAAA');
+    expect(img).toHaveAttribute('src', '/media/v1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/card.webp');
     expect(img).toHaveAttribute('alt', 'Front of house');
 
     expect(screen.getByTestId('carousel-dots').children).toHaveLength(3);
@@ -65,7 +65,7 @@ describe('ListingImageCarousel', () => {
 
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,CCCC',
+      '/media/v1/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/card.webp',
     );
     expect(screen.getByTestId('carousel-dot-2')).toHaveAttribute('aria-current', 'true');
     expect(screen.getByTestId('carousel-status')).toHaveTextContent('Image 3 of 3');
@@ -80,7 +80,7 @@ describe('ListingImageCarousel', () => {
 
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,BBBB',
+      '/media/v1/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/card.webp',
     );
   });
 
@@ -91,14 +91,14 @@ describe('ListingImageCarousel', () => {
       swipe(-120);
     });
     expect(screen.getByTestId('carousel-image').getAttribute('src')).toBe(
-      'data:image/jpeg;base64,BBBB',
+      '/media/v1/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/card.webp',
     );
 
     act(() => {
       swipe(120);
     });
     expect(screen.getByTestId('carousel-image').getAttribute('src')).toBe(
-      'data:image/jpeg;base64,AAAA',
+      '/media/v1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/card.webp',
     );
   });
 
@@ -117,14 +117,14 @@ describe('ListingImageCarousel', () => {
       swipe(-120);
     });
     expect(screen.getByTestId('carousel-image').getAttribute('src')).toBe(
-      'data:image/jpeg;base64,BBBB',
+      '/media/v1/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/card.webp',
     );
 
     act(() => {
       swipe(120);
     });
     expect(screen.getByTestId('carousel-image').getAttribute('src')).toBe(
-      'data:image/jpeg;base64,AAAA',
+      '/media/v1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/card.webp',
     );
 
     expect(navigateToListings).not.toHaveBeenCalled();
@@ -141,7 +141,7 @@ describe('ListingImageCarousel', () => {
 
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,AAAA',
+      '/media/v1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/card.webp',
     );
   });
 
@@ -155,7 +155,7 @@ describe('ListingImageCarousel', () => {
 
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,AAAA',
+      '/media/v1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/card.webp',
     );
   });
 
@@ -183,7 +183,7 @@ describe('ListingImageCarousel', () => {
     });
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,BBBB',
+      '/media/v1/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/card.webp',
     );
 
     act(() => {
@@ -191,7 +191,7 @@ describe('ListingImageCarousel', () => {
     });
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,AAAA',
+      '/media/v1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/card.webp',
     );
   });
 
@@ -204,41 +204,97 @@ describe('ListingImageCarousel', () => {
     });
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,AAAA',
+      '/media/v1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/card.webp',
     );
   });
 
-  it('renders raw base64 image data as a data URI', () => {
-    render(<ListingImageCarousel images={[{ image_data: 'ZZZZ' }]} />);
+  it('addresses the image at its content-hashed /media URL', () => {
+    render(<ListingImageCarousel images={[{ contentHash: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd' }]} />);
 
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,ZZZZ',
+      '/media/v1/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/card.webp',
     );
   });
 
-  it('passes an already-prefixed data URI through unchanged', () => {
+  it('offers every variant in a srcset so the browser picks the smallest that fits', () => {
+    // Without this the browser would always take the largest available file.
+    render(<ListingImageCarousel images={[{ contentHash: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd' }]} />);
+
+    const image = screen.getByTestId('carousel-image');
+    expect(image).toHaveAttribute(
+      'srcset',
+      [
+        '/media/v1/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/thumb.webp 400w',
+        '/media/v1/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/card.webp 828w',
+        '/media/v1/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/full.webp 1280w',
+      ].join(', '),
+    );
+    expect(image).toHaveAttribute('sizes');
+  });
+
+  it('caps and deduplicates srcset widths for a small master', () => {
     render(
-      <ListingImageCarousel images={[{ image_data: 'data:image/png;base64,CCCC' }]} />,
+      <ListingImageCarousel
+        images={[
+          {
+            contentHash: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+            width: 600,
+          },
+        ]}
+      />,
     );
 
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
-      'src',
-      'data:image/png;base64,CCCC',
+      'srcset',
+      [
+        '/media/v1/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/thumb.webp 400w',
+        '/media/v1/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/card.webp 600w',
+      ].join(', '),
     );
+  });
+
+  it('sets intrinsic dimensions so the image reserves its space before loading', () => {
+    render(
+      <ListingImageCarousel
+        images={[{ contentHash: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', width: 1621, height: 1080 }]}
+      />,
+    );
+
+    const image = screen.getByTestId('carousel-image');
+    expect(image).toHaveAttribute('width', '1621');
+    expect(image).toHaveAttribute('height', '1080');
+    expect(image).toHaveAttribute('decoding', 'async');
+  });
+
+  it('preloads only the adjacent images, so a swipe is not a cold fetch', () => {
+    // Preloading the whole set would recreate the payload problem this change
+    // removes, so only the reachable neighbours are warmed.
+    const hashes = ['1', '2', '3', '4'].map((n) => n.repeat(64));
+    render(
+      <ListingImageCarousel images={hashes.map((contentHash) => ({ contentHash }))} />,
+    );
+
+    const preloaded = screen
+      .getAllByTestId('carousel-preload')
+      .map((node) => node.getAttribute('src'));
+
+    // Showing image 0: only image 1 is one step away.
+    expect(preloaded).toEqual([`/media/v1/${hashes[1]}/card.webp`]);
   });
 
   it('falls back to a generic alt when none is provided', () => {
-    render(<ListingImageCarousel images={[{ image_data: 'AAAA' }]} />);
+    render(<ListingImageCarousel images={[{ contentHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }]} />);
 
     expect(screen.getByTestId('carousel-image')).toHaveAttribute('alt', 'Listing image');
   });
 
   it('excludes images with missing data from the carousel', () => {
     const images: CarouselImage[] = [
-      { image_data: 'AAAA', alt: 'Front' },
-      { image_data: '', alt: 'Broken' },
-      { image_data: 'CCCC', alt: 'Garden' },
+      { contentHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', alt: 'Front' },
+      { contentHash: '', alt: 'Broken' },
+      { contentHash: '../api/auth/me'.padEnd(64, 'x'), alt: 'Malformed' },
+      { contentHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', alt: 'Garden' },
     ];
     render(<ListingImageCarousel images={images} />);
 
@@ -252,12 +308,12 @@ describe('ListingImageCarousel', () => {
     // The second renderable image is the third source image (the empty one is skipped).
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,CCCC',
+      '/media/v1/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/card.webp',
     );
   });
 
   it('hides the paging dots when there is only one image', () => {
-    render(<ListingImageCarousel images={[{ image_data: 'AAAA' }]} />);
+    render(<ListingImageCarousel images={[{ contentHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }]} />);
 
     expect(screen.getByTestId('carousel-image')).toBeInTheDocument();
     expect(screen.queryByTestId('carousel-dots')).not.toBeInTheDocument();
@@ -272,7 +328,7 @@ describe('ListingImageCarousel', () => {
   });
 
   it('shows the placeholder when every image is missing data', () => {
-    render(<ListingImageCarousel images={[{ image_data: '' }, { image_data: '' }]} />);
+    render(<ListingImageCarousel images={[{ contentHash: '' }, { contentHash: '' }]} />);
 
     expect(screen.getByTestId('carousel-empty')).toBeInTheDocument();
     expect(screen.queryByTestId('carousel-image')).not.toBeInTheDocument();
@@ -293,7 +349,7 @@ describe('ListingImageCarousel', () => {
 
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,AAAA',
+      '/media/v1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/card.webp',
     );
   });
 
@@ -301,7 +357,7 @@ describe('ListingImageCarousel', () => {
     // 12 renderable images: above the 7-dot cap, so the row becomes a sliding
     // window of 7 dots flanked by previous/next arrows.
     const MANY_IMAGES: CarouselImage[] = Array.from({ length: 12 }, (_, index) => ({
-      image_data: `IMG${index}`,
+      contentHash: `${String(index).padStart(2, '0')}${'e'.repeat(62)}`,
       alt: `Image ${index + 1}`,
     }));
 
@@ -396,7 +452,7 @@ describe('ListingImageCarousel', () => {
       expect(screen.getByTestId('carousel-status')).toHaveTextContent('Image 1 of 12');
       expect(screen.getByTestId('carousel-image')).toHaveAttribute(
         'src',
-        'data:image/jpeg;base64,IMG0',
+        `/media/v1/00${'e'.repeat(62)}/card.webp`,
       );
     });
   });

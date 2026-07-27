@@ -42,7 +42,78 @@ describe('fetchListingDetail', () => {
       },
       cache: 'no-store',
     });
-    expect(result).toEqual(listing);
+    expect(result).toMatchObject({ id: 123, price: 450000 });
+  });
+
+  it('strips image bytes and analysis blobs before returning', async () => {
+    // The upstream payload inlines every image as base64 plus a large analysis
+    // blob. None of it is rendered, and a six-listing window measured ~50MB, so
+    // it must not reach the browser. Images are addressed by content_hash and
+    // fetched from /media instead.
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          id: 7,
+          title: 'A house',
+          description_analysis: 'x'.repeat(5000),
+          images: [
+            {
+              id: 1,
+              content_hash: 'a'.repeat(64),
+              image_data: 'BASE64PAYLOAD'.repeat(1000),
+              image_analysis: 'y'.repeat(5000),
+              url: 'https://harvest-source.example/photo.jpg',
+              alt_text: 'Front',
+              position: 0,
+              is_primary: true,
+              width: 1621,
+              height: 1080,
+            },
+          ],
+        }),
+    } as Response);
+
+    const result = await fetchListingDetail(7);
+    const serialised = JSON.stringify(result);
+
+    expect(serialised).not.toContain('BASE64PAYLOAD');
+    expect(serialised).not.toContain('image_analysis');
+    expect(serialised).not.toContain('description_analysis');
+    // The harvest-source URL is a pointer we do not expose to the browser.
+    expect(serialised).not.toContain('harvest-source.example');
+
+    expect(result.images).toEqual([
+      {
+        id: 1,
+        content_hash: 'a'.repeat(64),
+        alt_text: 'Front',
+        position: 0,
+        is_primary: true,
+        width: 1621,
+        height: 1080,
+      },
+    ]);
+  });
+
+  it('drops images that have no content_hash, since they cannot be addressed', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          id: 8,
+          images: [
+            { id: 1, content_hash: 'b'.repeat(64), is_primary: true },
+            { id: 2, content_hash: null, is_primary: false },
+            { id: 3, content_hash: '../api/auth/me'.padEnd(64, 'x'), is_primary: false },
+          ],
+        }),
+    } as Response);
+
+    const result = await fetchListingDetail(8);
+
+    expect(result.images).toHaveLength(1);
+    expect(result.images[0].id).toBe(1);
   });
 
   it('throws an EnrichmentDbClientError carrying the status on an upstream 404', async () => {

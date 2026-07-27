@@ -35,16 +35,17 @@ function makeListing(id: number): ListingDetail {
     title: `Listing ${id}`,
     price: 450000 + id,
     first_seen: new Date().toISOString(),
-    images: [{ id: id * 10, image_data: 'AAAA', is_primary: true, position: 0 }],
+    images: [{ id: id * 10, content_hash: 'a'.repeat(64), is_primary: true, position: 0 }],
   };
 }
 
-function makeListingWithImages(id: number, imageData: string[]): ListingDetail {
+function makeListingWithImages(id: number, imageTags: string[]): ListingDetail {
   return {
     ...makeListing(id),
-    images: imageData.map((data, index) => ({
+    images: imageTags.map((tag, index) => ({
       id: id * 10 + index,
-      image_data: data,
+      // Distinct, valid 64-char hex per tag so /media URLs differ per image.
+      content_hash: (tag.toLowerCase().replace(/[^a-f0-9]/g, 'a') + 'a'.repeat(64)).slice(0, 64),
       is_primary: index === 0,
       position: index,
     })),
@@ -199,7 +200,7 @@ describe('ListingFlow', () => {
     });
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,BBBB',
+      '/media/v1/bbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/card.webp',
     );
 
     await act(async () => {
@@ -209,7 +210,7 @@ describe('ListingFlow', () => {
     expect(await screen.findByRole('heading', { name: 'Listing 212' })).toBeTruthy();
     expect(screen.getByTestId('carousel-image')).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,CCCC',
+      '/media/v1/ccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/card.webp',
     );
   });
 

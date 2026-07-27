@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ListingDetailView } from '@/lib/listing-detail-view';
+import { isValidContentHash, mediaUrl } from '@/lib/media-url';
 
 interface ShortlistCardProps {
   view: ListingDetailView;
@@ -9,18 +10,15 @@ interface ShortlistCardProps {
   variant: 'saved' | 'maybe';
 }
 
-function thumbnailSrc(view: ListingDetailView): string | null {
-  const first = view.images[0]?.image_data;
-  if (!first) {
-    return null;
-  }
-  return first.startsWith('data:') ? first : `data:image/jpeg;base64,${first}`;
+function thumbnailHash(view: ListingDetailView): string | null {
+  const hash = view.images[0]?.contentHash;
+  return isValidContentHash(hash) ? hash : null;
 }
 
 /** Compact horizontal listing row used on the shortlist (Figma 10/11). Tapping it
  *  opens the full detail page. */
 export default function ShortlistCard({ view, metaLabel, variant }: ShortlistCardProps) {
-  const src = thumbnailSrc(view);
+  const hash = thumbnailHash(view);
 
   return (
     <Link
@@ -28,9 +26,21 @@ export default function ShortlistCard({ view, metaLabel, variant }: ShortlistCar
       className="flex gap-3 rounded-zelli-card border border-zelli-border bg-zelli-surface p-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-zelli-accent"
     >
       <div className="h-[88px] w-[104px] shrink-0 overflow-hidden rounded-xl bg-zelli-accent-soft">
-        {src ? (
+        {hash ? (
+          // The `thumb` variant is 400px wide, which covers this 104x88 slot
+          // even at DPR 3. This row previously rendered a full-resolution
+          // 1621x1080 master, so the shortlist pulled megabytes per row to fill
+          // a thumbnail. Lazily loaded because a shortlist scrolls.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={view.title ?? 'Listing image'} className="h-full w-full object-cover" />
+          <img
+            src={mediaUrl(hash, 'thumb')}
+            alt={view.title ?? 'Listing image'}
+            width={104}
+            height={88}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs font-bold text-zelli-accent">
             Image

@@ -136,7 +136,57 @@ describe('fetchListingStackRank', () => {
         cache: 'no-store',
       },
     );
-    expect(result).toEqual({ listings: mockListings, profile_weights: mockWeights });
+    expect(result.profile_weights).toEqual(mockWeights);
+    expect(result.listings).toMatchObject([{ id: 101, title: 'First listing' }]);
+  });
+
+  it('strips image bytes from the window before it crosses to the browser', async () => {
+    // The upstream six-listing window measured ~50MB, 92% of it base64 image
+    // data for images the user never sees. The slim form is ~27KB.
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          listings: [
+            {
+              id: 101,
+              title: 'First listing',
+              images: [
+                {
+                  id: 1,
+                  content_hash: 'c'.repeat(64),
+                  image_data: 'BASE64PAYLOAD'.repeat(1000),
+                  image_analysis: 'z'.repeat(4000),
+                  url: 'https://harvest-source.example/photo.jpg',
+                  is_primary: true,
+                  width: 1621,
+                  height: 1080,
+                },
+              ],
+            },
+          ],
+          profile_weights: {},
+        }),
+    } as Response);
+
+    const result = await fetchListingStackRank({
+      customerId: 42,
+      customerCredential: 'customer-token',
+    });
+
+    const serialised = JSON.stringify(result);
+    expect(serialised).not.toContain('BASE64PAYLOAD');
+    expect(serialised).not.toContain('image_analysis');
+    expect(serialised).not.toContain('harvest-source.example');
+    expect(result.listings[0].images[0]).toEqual({
+      id: 1,
+      content_hash: 'c'.repeat(64),
+      alt_text: null,
+      position: null,
+      is_primary: true,
+      width: 1621,
+      height: 1080,
+    });
   });
 
   it('defaults to an empty listing response when the upstream omits fields', async () => {
