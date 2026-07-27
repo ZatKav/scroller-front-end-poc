@@ -19,8 +19,12 @@ const mockFetchImageVariant = fetchImageVariant as jest.MockedFunction<
 
 const VALID_HASH = 'a'.repeat(64);
 
-function requestFor(headers: Record<string, string> = {}, search = '') {
-  return new Request(`http://localhost/media/v1/x/card.webp${search}`, {
+function requestFor(
+  headers: Record<string, string> = {},
+  search = '',
+  path = '/media/v1/x/card.webp',
+) {
+  return new Request(`http://localhost${path}${search}`, {
     headers,
   }) as unknown as Parameters<typeof GET>[0];
 }
@@ -123,6 +127,19 @@ describe('GET /media/v1/[hash]/[file]', () => {
   it('rejects query-busting without calling upstream', async () => {
     const response = await GET(
       requestFor({}, '?cache-bust=1'),
+      paramsFor(VALID_HASH, 'card.webp'),
+    );
+
+    expect(response.status).toBe(404);
+    expect(mockFetchImageVariant).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['hash', `/media/v1/%61${'a'.repeat(63)}/card.webp`],
+    ['filename', `/media/v1/${VALID_HASH}/%63ard.webp`],
+  ])('rejects an encoded %s alias without calling upstream', async (_label, path) => {
+    const response = await GET(
+      requestFor({}, '', path),
       paramsFor(VALID_HASH, 'card.webp'),
     );
 

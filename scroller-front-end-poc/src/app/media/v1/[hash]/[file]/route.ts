@@ -45,10 +45,11 @@ export async function GET(
   { params }: { params: Promise<{ hash: string; file: string }> },
 ): Promise<NextResponse> {
   const { hash, file } = await params;
+  const url = new URL(request.url);
 
-  // Query parameters have no meaning for content-addressed media and would let
-  // callers bypass ordinary browser/CDN cache keys for the same image.
-  if (new URL(request.url).search) {
+  // Query parameters and encoded aliases have no meaning for content-addressed
+  // media and would create multiple browser/CDN cache keys for the same image.
+  if (url.search || url.pathname.includes('%')) {
     return notFound();
   }
 
