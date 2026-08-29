@@ -201,9 +201,7 @@ export default function ListingImageCarousel({ images }: ListingImageCarouselPro
           alt={currentImage.alt || 'Listing image'}
           // The visible image is the point of the page: fetch it first and
           // decode it off the critical path.
-          // React 18's DOM typings predate fetchpriority. The attribute is
-          // valid HTML and browsers honour it, so it is spread in directly.
-          {...({ fetchpriority: 'high' } as { fetchpriority: string })}
+          fetchPriority="high"
           decoding="async"
           className="h-full w-full object-contain"
         />
